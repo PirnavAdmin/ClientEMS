@@ -24,8 +24,10 @@ import {
 import { NavLink, useLocation } from "react-router-dom";
 import { usePermissionScope } from "../context/usePermissionScope";
 import {
+  hasEmployeeIdClaim,
   getDashboardPathForRole,
   getUserRole,
+  isEmployeeOnlyModule,
   modulePermissionMatches,
   isSuperAdmin,
 } from "../utils/authorization";
@@ -405,6 +407,9 @@ const getItemModuleNames = (item) => {
   return [];
 };
 
+const isEmployeeOnlyNavigationItem = (item) =>
+  getItemModuleNames(item).some((moduleName) => isEmployeeOnlyModule(moduleName));
+
 const matchesAllowedModule = (permission, moduleName) => {
   const permissionName = String(
     permission?.moduleName ?? permission?.ModuleName ?? ""
@@ -465,7 +470,7 @@ const resolveItemPath = (item, roleName) => {
     : resolvedPath;
 };
 
-const buildNavigationModel = (roleName, allowedModules) => {
+const buildNavigationModel = (roleName, allowedModules, hasEmployeeId) => {
   const superAdminRole = isSuperAdmin(roleName);
 
   return SIDEBAR_NAVIGATION.reduce((acc, item) => {
@@ -474,6 +479,7 @@ const buildNavigationModel = (roleName, allowedModules) => {
 
       if (
         !path ||
+        (!hasEmployeeId && isEmployeeOnlyNavigationItem(item)) ||
         (superAdminRole &&
           !SUPER_ADMIN_ALLOWED_TOP_LEVEL_KEYS.has(item.key)) ||
         (!superAdminRole && !isItemAllowedByPermissions(item, allowedModules))
@@ -494,9 +500,15 @@ const buildNavigationModel = (roleName, allowedModules) => {
     }
 
     const visibleItems = item.items
-      .filter((child) =>
-        superAdminRole ? SUPER_ADMIN_ALLOWED_ADMIN_LABELS.has(child.label) : true
-      )
+      .filter((child) => {
+        if (!hasEmployeeId && isEmployeeOnlyNavigationItem(child)) {
+          return false;
+        }
+
+        return superAdminRole
+          ? SUPER_ADMIN_ALLOWED_ADMIN_LABELS.has(child.label)
+          : true;
+      })
       .map((child) => ({
         ...child,
         path: resolveItemPath(child, roleName),
@@ -585,12 +597,13 @@ function SubmenuLink({ to, icon, label, onClick }) {
 function Sidebar({ collapsed = false, isMobile = false, mobileOpen = false, onClose }) {
   const location = useLocation();
   const roleName = getUserRole();
+  const hasEmployeeId = hasEmployeeIdClaim();
   const { isLoading, error, refreshPermissions, allowedModules } = usePermissionScope();
   const isCompact = !isMobile && collapsed;
   const dashboardPath = getDashboardPathForRole(roleName);
   const navigation = useMemo(
-    () => buildNavigationModel(roleName, allowedModules),
-    [allowedModules, roleName]
+    () => buildNavigationModel(roleName, allowedModules, hasEmployeeId),
+    [allowedModules, hasEmployeeId, roleName]
   );
   const routeMenu = useMemo(
     () => getMenuKeyFromPath(location.pathname, navigation),
@@ -828,7 +841,7 @@ function Sidebar({ collapsed = false, isMobile = false, mobileOpen = false, onCl
         <span className="sidebar-brand-icon-wrap" aria-hidden="true">
           <img src={honeyIcon} alt="" className="sidebar-brand-icon" />
         </span>
-        <span className="sidebar-brand-text">Honeywell EMS</span>
+        <span className="sidebar-brand-text">Honeywell</span>
         </NavLink>
 
         <nav className="menu">

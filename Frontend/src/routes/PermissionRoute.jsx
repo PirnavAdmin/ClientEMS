@@ -2,7 +2,11 @@ import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { PageSkeleton } from "../components/Skeletons";
 import { usePermissionScope } from "../context/usePermissionScope";
-import { isSuperAdmin } from "../utils/authorization";
+import {
+  hasEmployeeIdClaim,
+  isEmployeeOnlyModule,
+  isSuperAdmin,
+} from "../utils/authorization";
 
 const PermissionRoute = ({ children, module }) => {
   const location = useLocation();
@@ -10,9 +14,24 @@ const PermissionRoute = ({ children, module }) => {
   const requestedModule = String(module ?? "").trim();
   const hasPermission = requestedModule ? canAccessModule(requestedModule) : true;
   const isSuperAdminUser = isSuperAdmin(role) || isSuperAdmin();
+  const isStandaloneAddEmployeeRoute = /^\/add-employee\/?$/.test(location.pathname);
+  const isEmployeeSelfServiceRoute =
+    isEmployeeOnlyModule(requestedModule) || isStandaloneAddEmployeeRoute;
+  const isEmployeeIdMissing = !hasEmployeeIdClaim();
+  const unauthorizedMessage = "You are not authorized to access this page.";
 
   console.log("Current Route:", location.pathname);
   console.log("Permission Check:", hasPermission);
+
+  if (isEmployeeIdMissing && isEmployeeSelfServiceRoute) {
+    return (
+      <Navigate
+        to="/403"
+        replace
+        state={{ message: unauthorizedMessage }}
+      />
+    );
+  }
 
   if (isSuperAdminUser) {
     return children;

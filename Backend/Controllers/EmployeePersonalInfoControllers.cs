@@ -7,7 +7,9 @@ using EmployeeManagementSystem.Models;
 using Microsoft.AspNetCore.Mvc;
 
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Security.Claims;
+using System.Threading.Tasks;
 namespace EmployeeManagementSystem.Controllers
 
 {
@@ -31,16 +33,16 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         // 🔹 CREATE
-        private async Task<bool> IsAdminUser()
-        {
-            var email = User.FindFirst(ClaimTypes.Email)?.Value;
+        //private async Task<bool> IsAdminUser()
+        //{
+        //    var email = User.FindFirst(ClaimTypes.Email)?.Value;
 
-            if (string.IsNullOrEmpty(email))
-                return false;
+        //    if (string.IsNullOrEmpty(email))
+        //        return false;
 
-            return await _context.Admins
-                .AnyAsync(a => a.Email == email);
-        }
+        //    return await _context.Admins
+        //        .AnyAsync(a => a.Email == email);
+        //}
 
 
 
@@ -50,35 +52,35 @@ namespace EmployeeManagementSystem.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var loggedInEmail = User.FindFirst(ClaimTypes.Email)?.Value;
+            // Get logged-in user's email from JWT
+            var email = User.FindFirst(ClaimTypes.Email)?.Value;
 
-            // Check whether logged-in user is an Admin
-            bool isAdmin = await _context.Admins
-                .AnyAsync(a => a.Email == loggedInEmail);
+            if (string.IsNullOrWhiteSpace(email))
+                return Unauthorized("Invalid user.");
+
+            // Fetch EmployeeId from Employees table
+            var employee = await _context.Employees
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.Email == email);
 
             string employeeId;
 
-            if (isAdmin)
+            if (employee != null)
             {
-                // Admin can create for anyone.
+                // Logged-in employee
+                employeeId = employee.Employee_Id;
+
+                // Ignore Employee_Id sent from frontend
+                dto.Employee_Id = employee.Employee_Id;
+            }
+            else
+            {
+                // Admin / HR / Manager
                 if (string.IsNullOrWhiteSpace(dto.Employee_Id))
                     return BadRequest("Employee Id is required.");
 
                 employeeId = dto.Employee_Id;
             }
-            else
-            {
-                // Employee or Onboarding Candidate
-                employeeId = User.FindFirst("EmployeeId")?.Value
-                            ?? User.FindFirst("OnboardingId")?.Value;
-
-                if (string.IsNullOrWhiteSpace(employeeId))
-                    return Unauthorized("Invalid user.");
-
-                // Ignore whatever Employee_Id comes from the frontend
-                dto.Employee_Id = employeeId;
-            }
-
             var exists = await _context.EmployeePersonalInfos
                 .AnyAsync(x => x.Employee_Id == employeeId);
 
@@ -139,23 +141,21 @@ namespace EmployeeManagementSystem.Controllers
                 return BadRequest("Employee Id is required.");
 
             // Check if logged-in user is Admin
-            bool isAdmin = await IsAdminUser();
+            var currentUserId = User.FindFirst("EmployeeId")?.Value
+                  ?? User.FindFirst("OnboardingId")?.Value;
 
-            if (!isAdmin)
+            // Employee can edit only their own details
+            if (!string.IsNullOrWhiteSpace(currentUserId))
             {
-                // Get EmployeeId or OnboardingId from JWT
-                var currentUserId = User.FindFirst("EmployeeId")?.Value
-                                 ?? User.FindFirst("OnboardingId")?.Value;
-
-                if (string.IsNullOrWhiteSpace(currentUserId))
-                    return Unauthorized("Invalid user.");
-
-                // Employee/Onboarding can update only their own record
                 if (!string.Equals(currentUserId, employeeId, StringComparison.OrdinalIgnoreCase))
                 {
                     return Forbid("You can edit only your own information.");
                 }
             }
+
+            // If EmployeeId is not present in JWT,
+            // this request is coming from Admin / HR / Manager / Permission user,
+            // so allow the update.
 
             var existing = await _context.EmployeePersonalInfos
                 .FirstOrDefaultAsync(x => x.Employee_Id == employeeId);

@@ -7,7 +7,11 @@ using EmployeeManagementSystem.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OpenXmlPowerTools;
+using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Security.Claims;
+using System.Threading.Tasks;
 
 public class EmployeeLeaveService : IEmployeeLeaveService
 
@@ -553,12 +557,12 @@ Employee Management System
         }
         var role = loggedInUser.RoleName?.Trim();
 
-        if (!string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(role, "HR", StringComparison.OrdinalIgnoreCase))
-        {
-            return new BadRequestObjectResult(
-                "Only Manager or HR can approve leave");
-        }
+        //if (!string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase) &&
+        //    !string.Equals(role, "HR", StringComparison.OrdinalIgnoreCase))
+        //{
+        //    return new BadRequestObjectResult(
+        //        "Only Manager or HR can approve leave");
+        //}
         Console.WriteLine($"Original Name = {approver.Name}");
         Console.WriteLine($"First Name = {approverName}");
 
@@ -1961,14 +1965,14 @@ Employee Management System
 
         var role = loggedInUser.RoleName?.Trim();
 
-        if (!string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(role, "HR", StringComparison.OrdinalIgnoreCase) &&
-            !!string.Equals(role, "HRAdmin", StringComparison.OrdinalIgnoreCase))
+        //if (!string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase) &&
+        //    !string.Equals(role, "HR", StringComparison.OrdinalIgnoreCase) &&
+        //    !!string.Equals(role, "HRAdmin", StringComparison.OrdinalIgnoreCase))
 
-        {
-            return new BadRequestObjectResult(
-                "Only Manager or HR can approve WFH");
-        }
+        //{
+        //    return new BadRequestObjectResult(
+        //        "Only Manager or HR can approve WFH");
+        //}
 
         request.ApprovedBy = approverName;
         request.ApprovedOn = DateTime.UtcNow;

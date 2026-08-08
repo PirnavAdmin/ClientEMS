@@ -15,7 +15,7 @@ import {
   getAuthenticatedUserSnapshot,
   getStoredAuthValue,
 } from "../utils/authStorage";
-import { isAdmin, isSuperAdmin } from "../utils/authorization";
+import { hasEmployeeIdClaim, isAdmin, isSuperAdmin } from "../utils/authorization";
 import { handleAutoLogout } from "../utils/sessionManager";
 import {
   getNotificationEndpoint,
@@ -62,6 +62,7 @@ function Header({ collapsed = false, isMobileViewport = false, onToggle }) {
   const role = authSnapshot.role || authSnapshot.roleName || "";
   const isAdminUser = isAdmin(role);
   const isSuperAdminUser = isSuperAdmin(role);
+  const showProfileLink = !isAdminUser && hasEmployeeIdClaim();
   const email = getStoredAuthValue("email", "No Email");
   const notificationEndpoint = getNotificationEndpoint(role, authSnapshot);
   const notificationTarget = getNotificationRoute(role, authSnapshot);
@@ -250,7 +251,7 @@ function Header({ collapsed = false, isMobileViewport = false, onToggle }) {
                   <strong>{profileLabel}</strong>
                   <span>{email}</span>
                 </div>
-                {!isAdminUser && (
+                {showProfileLink && (
                   <button
                     type="button"
                     className="profile-item"

@@ -4,6 +4,7 @@ import {
   getStoredRoleName,
   getStoredPermissions,
   getStoredAuthValue,
+  getStoredJwtEmployeeId,
 } from "./authStorage";
 import { ticketPermissionMatches } from "../TicketManagement/ticketConfig";
 import { toBoolean } from "./boolean";
@@ -223,6 +224,9 @@ export const isEmployee = (value) => {
 
 export const isEmployeeUser = () => isEmployee();
 
+export const hasEmployeeIdClaim = () =>
+  Boolean(String(getStoredJwtEmployeeId() ?? "").trim());
+
 export const isOnboardingUser = () =>
   isStoredOnboardingUser() || hasRole("onboarding", "candidate");
 
@@ -231,6 +235,20 @@ const normalizeModuleName = (value) =>
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
+
+const EMPLOYEE_ONLY_MODULE_NAMES = new Set(
+  [
+    "User Notifications",
+    "User Leave Management",
+    "User Attendance",
+    "User Payslip",
+    "User Holidays",
+    "Add Details",
+  ].map(normalizeModuleName)
+);
+
+export const isEmployeeOnlyModule = (moduleName) =>
+  EMPLOYEE_ONLY_MODULE_NAMES.has(normalizeModuleName(moduleName));
 
 export const modulePermissionMatches = (permissionModule, requestedModule) => {
   const storedModule = normalizeModuleName(permissionModule);

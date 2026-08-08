@@ -5,7 +5,7 @@ import "./SuperAdmin.css";
 import "../Employees/EmployeeList.css";
 import "../Employees/ScreenPermissions/ScreenPermissions.css";
 import { TableSkeleton } from "../components/Skeletons";
-import { toastError, toastSuccess } from "../components/common/toast/toastService";
+import { toastError, toastSuccess } from "../components/common/Toast/toastService";
 import {
   buildAdminPermissionSavePayload,
   fetchAdminPermissionsByAdminId,

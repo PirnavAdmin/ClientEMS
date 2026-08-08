@@ -1156,6 +1156,9 @@ export const getStoredJwtPayload = () => decodeJwtPayload(getStoredToken());
 export const getStoredJwtRole = () =>
   getValueFromRecord(getStoredJwtPayload(), JWT_ROLE_KEYS);
 
+export const getStoredJwtEmployeeId = () =>
+  getValueFromRecord(getStoredJwtPayload(), JWT_EMPLOYEE_ID_KEYS);
+
 export const getStoredUserRecord = () => {
   for (const key of JSON_STORAGE_KEYS) {
     const record = getStoredJsonRecord(key);
@@ -1177,6 +1180,7 @@ export const getAuthenticatedUserSnapshot = () => {
   const storedRoleName = getStoredRoleName();
   const adminId = getStoredAdminId();
   const adminEmail = getStoredAdminEmail();
+  const employeeId = getStoredJwtEmployeeId();
   const superAdminId = getStoredAuthValue("superAdminId");
   const userId = getStoredUserId();
 
@@ -1206,6 +1210,7 @@ export const getAuthenticatedUserSnapshot = () => {
     roles: getStoredRoles(),
     id: userId || adminId || superAdminId || "",
     adminId,
+    employeeId,
     adminEmail,
     superAdminId,
     refreshToken,

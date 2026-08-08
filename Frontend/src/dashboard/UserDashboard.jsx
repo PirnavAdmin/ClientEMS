@@ -42,6 +42,7 @@ import {
   getUserAttendanceDashboard,
 } from "../services/attendanceService";
 import { getAuthenticatedUserSnapshot } from "../utils/authStorage";
+import { hasEmployeeIdClaim } from "../utils/authorization";
 import { getNotificationRoute } from "../services/notificationService";
 
 const DEFAULT_WEEK_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -796,6 +797,7 @@ function BirthdayModal({ open, birthdays, onClose }) {
 function UserDashboard() {
   const navigate = useNavigate();
   const authSnapshot = getAuthenticatedUserSnapshot();
+  const isEmployeeSession = hasEmployeeIdClaim();
   const notificationRoute = getNotificationRoute(
     authSnapshot.role || authSnapshot.roleName || "",
     authSnapshot
@@ -1174,15 +1176,25 @@ function UserDashboard() {
       </div>
 
       <div className="udb-actions">
-        <button className="udb-action-btn" onClick={() => navigate("/user-leave-management")}>
-          <FaPlaneDeparture />
-          Apply Leave
-        </button>
+        {isEmployeeSession && (
+          <button
+            className="udb-action-btn"
+            onClick={() => navigate("/user-leave-management")}
+          >
+            <FaPlaneDeparture />
+            Apply Leave
+          </button>
+        )}
 
-        <button className="udb-action-btn" onClick={() => navigate("/user-attendance")}>
-          <FaCalendarCheck />
-          Mark Attendance
-        </button>
+        {isEmployeeSession && (
+          <button
+            className="udb-action-btn"
+            onClick={() => navigate("/user-attendance")}
+          >
+            <FaCalendarCheck />
+            Mark Attendance
+          </button>
+        )}
 
         <button className="udb-action-btn" onClick={() => navigate("/employee/my-tickets")}>
           <FaTicketAlt />

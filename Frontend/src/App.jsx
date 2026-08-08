@@ -8,10 +8,10 @@ import ProtectedRoute from "./routes/ProtectedRoute";
 import GlobalUiController from "./components/GlobalUiController";
 import { AdminPermissionProvider } from "./context/AdminPermissionContext";
 import { EmployeePermissionProvider } from "./context/EmployeePermissionContext";
-import "./components/common/toast/toast.css";
-import { toastTransition } from "./components/common/toast/toastService";
+import "./components/common/Toast/toast.css";
+import { toastTransition } from "./components/common/Toast/toastService";
 import { getStoredToken } from "./utils/authStorage";
-import { hasRole } from "./utils/authorization";
+import { hasEmployeeIdClaim, hasRole } from "./utils/authorization";
 import {
   clearSessionTimer,
   handleAutoLogout,
@@ -66,7 +66,6 @@ const RouteFallback = memo(() => (
 ));
 
 const Register = lazyRoute("register", () => import("./Pages/loginpage/Register"));
-const LandingPage = lazyRoute("landing-page", () => import("./Pages/landing/LandingPage"));
 const Login = lazyRoute("login", () => import("./Pages/loginpage/Login"));
 const ForgotPassword = lazyRoute("forgot-password", () => import("./Pages/loginpage/ForgotPassword"));
 const OtpVerification = lazyRoute("otp", () => import("./Pages/loginpage/OtpVerification"));
@@ -252,23 +251,23 @@ function App() {
         <SessionController />
         <Suspense fallback={<RouteFallback />}>
           <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/otp" element={<OtpVerification />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/access-denied" element={<AccessDenied />} />
-          <Route path="/403" element={<AccessDenied />} />
-          <Route path="/unauthorized" element={<Navigate to="/403" replace />} />
+            <Route path="/" element={<Login />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/otp" element={<OtpVerification />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/access-denied" element={<AccessDenied />} />
+            <Route path="/403" element={<AccessDenied />} />
+            <Route path="/unauthorized" element={<Navigate to="/403" replace />} />
 
-          <Route
-            element={
-            <ProtectedRoute>
-                <MainLayout />
-              </ProtectedRoute>
-            }
-          >
+            <Route
+              element={
+                <ProtectedRoute>
+                  <MainLayout />
+                </ProtectedRoute>
+              }
+            >
             {/* DASHBOARD */}
             <Route path="/onboarding" element={<Navigate to="/onboarding/details" replace />} />
             <Route path="/onboarding/details" element={<OnboardingDetails />} />
@@ -396,7 +395,7 @@ function App() {
             <Route
               path="/add-employee"
               element={
-                hasRole("user", "employee") ? (
+                hasEmployeeIdClaim() && hasRole("user", "employee") ? (
                   <AddEmployee />
                 ) : (
                   <PermissionRoute module="Add Employee">

@@ -1,12 +1,15 @@
 import React from "react";
 import { FaArrowLeft, FaHome, FaShieldAlt } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { getDashboardPathForRole, getUserRole } from "../utils/authorization";
 import "./AccessDenied.css";
 
 function AccessDenied() {
   const navigate = useNavigate();
+  const location = useLocation();
   const dashboardPath = getDashboardPathForRole(getUserRole());
+  const message =
+    location.state?.message || "You are not authorized to access this page.";
 
   return (
     <div className="access-denied-page">
@@ -21,10 +24,7 @@ function AccessDenied() {
         </div>
 
         <h1>403 Unauthorized</h1>
-        <p>
-          You do not have permission to access this section. If you believe this
-          is a mistake, please contact your system administrator.
-        </p>
+        <p>{message}</p>
 
         <div className="access-denied-actions">
           <button
