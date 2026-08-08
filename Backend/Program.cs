@@ -304,7 +304,7 @@ builder.Services.AddSwaggerGen(options =>
 // ================= BUILD =================
 QuestPDF.Settings.License = LicenseType.Community;
 
-Console.WriteLine(builder.Configuration.GetConnectionString("DefaultConnection"));
+Console.WriteLine("Using configured database connection.");
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())

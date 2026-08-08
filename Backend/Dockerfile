@@ -42,7 +42,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0-bookworm-slim AS runtime
  
 WORKDIR /app
  
-ENV ASPNETCORE_URLS=http://+:8080 \
+ENV ASPNETCORE_URLS=http://+:5000 \
  
     DOTNET_RUNNING_IN_CONTAINER=true \
  
@@ -112,6 +112,6 @@ RUN mkdir -p \
  
 USER ${APP_UID}
  
-EXPOSE 8080
+EXPOSE 5000
 
  

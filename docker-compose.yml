@@ -1,0 +1,41 @@
+services:
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: clientems-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5000
+      ConnectionStrings__DefaultConnection: "Server=${DB_HOST};Port=${DB_PORT};Database=${DB_NAME};User=${DB_USER};Password=${DB_PASSWORD};SslMode=None;AllowPublicKeyRetrieval=True;"
+      Cors__AllowedOrigins__0: ${FRONTEND_ORIGIN}
+      Cors__AllowedOrigins__1: ${FRONTEND_DIRECT_ORIGIN}
+    ports:
+      - "5000:5000"
+    volumes:
+      - backend-wwwroot:/app/wwwroot
+      - backend-generated-letters:/app/GeneratedLetters
+      - backend-generated-payslips:/app/GeneratedPayslips
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_ORIGIN: ${VITE_API_ORIGIN}
+    container_name: clientems-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+volumes:
+  backend-wwwroot:
+  backend-generated-letters:
+  backend-generated-payslips:
