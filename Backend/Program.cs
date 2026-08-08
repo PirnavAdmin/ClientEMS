@@ -41,9 +41,12 @@ builder.Services.AddScoped<JwtHelper>();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+        ?? throw new InvalidOperationException("DefaultConnection is not configured.");
+
     options.UseMySql(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection")),
+        connectionString,
+        new MySqlServerVersion(new Version(8, 0, 0)),
         mysqlOptions =>
         {
             mysqlOptions.EnableRetryOnFailure(
