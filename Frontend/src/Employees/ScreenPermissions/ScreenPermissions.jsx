@@ -4,7 +4,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import api from "../../api/axiosInstance";
 import { API_ENDPOINTS } from "../../api/endpoints";
 import { TableSkeleton } from "../../components/Skeletons";
-import { toastError, toastSuccess } from "../../components/common/Toast/toastService";
+import { toastError, toastSuccess } from "../../components/common/toast/toastService";
 import { extractCollection } from "../../utils/collections";
 import {
   buildRolePermissionSavePayload,

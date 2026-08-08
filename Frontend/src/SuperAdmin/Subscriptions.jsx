@@ -4,7 +4,7 @@ import "./SuperAdmin.css";
 import "../Employees/EmployeeList.css";
 import AppPagination from "../components/AppPagination";
 import { TableSkeleton } from "../components/Skeletons";
-import { toastError, toastSuccess } from "../components/common/Toast/toastService";
+import { toastError, toastSuccess } from "../components/common/toast/toastService";
 import {
   createAdminSubscription,
   getAdminSubscriptionUsage,
