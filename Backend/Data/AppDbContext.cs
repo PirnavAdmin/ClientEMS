@@ -251,7 +251,7 @@ namespace EmployeeManagementSystem.Data
         public DbSet<WorkflowMaster> WorkflowMaster { get; set; }
         public DbSet<WorkflowSteps> WorkflowStep { get; set; }
         public DbSet<WorkflowHistory> WorkflowHistorie { get; set; }
-        public DbSet<ExperienceLetter> ExperienceLetter { get; set; }
+        public DbSet<ExperienceLetter> ExperienceLetters { get; set; }
         public DbSet<EmployeeSalaryStructure>
     EmployeeSalaryStructures
         { get; set; }
@@ -350,7 +350,7 @@ namespace EmployeeManagementSystem.Data
             modelBuilder.Entity<MonitoringLog>()
                 .ToTable("MonitoringLogs");
             modelBuilder.Entity<PerformanceCycle>().ToTable("performancecycle");
-            modelBuilder.Entity<ExperienceLetters>()
+            modelBuilder.Entity<ExperienceLetter>()
               .ToTable("experienceletters");
             modelBuilder.Entity<ShiftMaster>().ToTable("shiftmaster");
             modelBuilder.Entity<ShiftRoster>().ToTable("shiftroster");
