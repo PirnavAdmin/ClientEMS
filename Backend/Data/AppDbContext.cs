@@ -340,7 +340,7 @@ namespace EmployeeManagementSystem.Data
             modelBuilder.Entity<MonitoringSettings>()
     .ToTable("MonitoringSettings");
             modelBuilder.Entity<RelievingLetter>()
-                .ToTable("RelievingLetter");
+                .ToTable("relievingletter");
             modelBuilder.Entity<UserPermission>()
     .ToTable("userpermission");
 
@@ -350,7 +350,8 @@ namespace EmployeeManagementSystem.Data
             modelBuilder.Entity<MonitoringLog>()
                 .ToTable("MonitoringLogs");
             modelBuilder.Entity<PerformanceCycle>().ToTable("performancecycle");
-
+            modelBuilder.Entity<ExperienceLetters>()
+              .ToTable("experienceletters");
             modelBuilder.Entity<ShiftMaster>().ToTable("shiftmaster");
             modelBuilder.Entity<ShiftRoster>().ToTable("shiftroster");
             modelBuilder.Entity<EmployeeShiftAssignment>().ToTable("employeeshiftassignment");
@@ -396,6 +397,8 @@ namespace EmployeeManagementSystem.Data
 
             modelBuilder.Entity<WorkflowHistory>()
                 .ToTable("workflowhistory");
+
+            
 
             modelBuilder.Entity<RolePermission>()
 
