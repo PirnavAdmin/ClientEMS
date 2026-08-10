@@ -1,6 +1,6 @@
 const API_ORIGIN = (
     import.meta.env.VITE_API_ORIGIN ||
-    "http://43.205.32.3:3000"
+    "https://hrms.honeywellitsolutions.com"
 ).replace(/\/+$/, "");
 
 export const SERVER_URL = API_ORIGIN;

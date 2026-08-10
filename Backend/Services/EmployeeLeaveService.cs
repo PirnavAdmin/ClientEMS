@@ -207,7 +207,7 @@ public class EmployeeLeaveService : IEmployeeLeaveService
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList() ?? new List<string>();
 
-        string baseUrl = "https://hrms.pirnav.com";
+        string baseUrl = "https://hrms.honeywellitsolutions.com";
 
         var notification = GetNotificationSettings();
 
@@ -276,7 +276,7 @@ We kindly request you to review the leave application and provide your approval/
 NOTE: Please log in to the EMS application using the link below:
 </p>
 <p>
-<a href='https://hrms.pirnav.com/login' target='_blank'>
+<a href='https://hrms.honeywellitsolutions.com/login' target='_blank'>
 
 EMS Login Portal
 </a>
@@ -285,7 +285,7 @@ EMS Login Portal
 
 Or copy and paste the URL into your browser:
 <br/>
-<b>https://hrms.pirnav.com/login</b>
+<b>https://hrms.honeywellitsolutions.com/login</b>
 </p>
 <p>
 
@@ -1668,7 +1668,7 @@ Employee Management System
             .ToList()
             ?? new List<string>();
 
-        string baseUrl = "https://hrms.pirnav.com";
+        string baseUrl = "https://hrms.honeywellitsolutions.com";
 
         var notification = GetNotificationSettings();
 
@@ -1738,7 +1738,7 @@ Please login using the below link.
 </p>
 
 <p>
-<a href='https://hrms.pirnav.com/login'>
+<a href='https://hrms.honeywellitsolutions.com/login'>
 EMS Login Portal
 </a>
 </p>
@@ -1748,7 +1748,7 @@ Or copy below URL:
 
 <br/>
 
-<b>https://hrms.pirnav.com/login</b>
+<b>https://hrms.honeywellitsolutions.com/login</b>
 </p>
 
 <p>

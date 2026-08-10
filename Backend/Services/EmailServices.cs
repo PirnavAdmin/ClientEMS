@@ -190,7 +190,7 @@ Hello {employeeName},
 Your account has been created successfully in Pirnav EMS.
 
 Login URL:
-https://hrms.pirnav.com/register
+https://hrms.honeywellitsolutions.com/register
 
 Please register and verify your account before logging in.
 

@@ -161,14 +161,15 @@ var allowedCorsOrigins = configuredCorsOrigins is { Length: > 0 }
     ? configuredCorsOrigins
     : new[]
     {
-        "https://hrms.pirnav.com",
+        "https://hrms.honeywellitsolutions.com",
+        "http://hrms.honeywellitsolutions.com",
         "http://localhost:3000",
         "http://localhost:4200",
         "http://localhost:5173",
          "http://localhost:5174",
           "http://localhost:8801",
-        "https://test.hrms.pirnav.com",
-         "https://www.test.hrms.pirnav.com"
+        "https://test.hrms.honeywellitsolutions.com",
+         "https://www.test.hrms.honeywellitsolutions.com"
     };
 
 builder.Services.AddCors(options =>
