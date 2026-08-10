@@ -1,70 +1,97 @@
 services:
-
+ 
   backend:
+
     build:
+
       context: ./Backend
+
       dockerfile: Dockerfile
-
+ 
     image: clientems-backend:${IMAGE_TAG:-latest}
+
     container_name: clientems-backend
+
     restart: unless-stopped
-
+ 
     env_file:
+
       - .env
-
+ 
     environment:
+
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+
       ASPNETCORE_URLS: http://+:5000
-
+ 
       ConnectionStrings__DefaultConnection: "Server=${DB_HOST};Port=${DB_PORT};Database=${DB_NAME};User=${DB_USER};Password=${DB_PASSWORD};SslMode=None;AllowPublicKeyRetrieval=True;"
-
+ 
       Cors__AllowedOrigins__0: ${FRONTEND_ORIGIN}
+
       Cors__AllowedOrigins__1: ${FRONTEND_DIRECT_ORIGIN}
-
+ 
     ports:
+
       - "5000:5000"
-
+ 
     volumes:
-
+ 
       # ASP.NET wwwroot
+
       - /home/ubuntu/clientems-storage/wwwroot:/app/wwwroot
-
+ 
       # Generated Letters
+
       - /home/ubuntu/clientems-storage/GeneratedLetters:/app/GeneratedLetters
-
+ 
       # Generated Payslips
+
       - /home/ubuntu/clientems-storage/GeneratedPayslips:/app/GeneratedPayslips
-
+ 
       # Employee Uploads
+
       - /home/ubuntu/clientems-storage/uploads:/app/wwwroot/uploads
-
+ 
       # Agreements / Templates / Signed Agreements
+
       - /home/ubuntu/clientems-storage/Agreements:/app/wwwroot/Agreements
-
+ 
       # Employee Signatures
+
       - /home/ubuntu/clientems-storage/Signatures:/app/wwwroot/Signatures
-
+ 
       # Application Templates
+
       - ./Backend/Templates:/app/Templates
-
+ 
     extra_hosts:
+
       - "host.docker.internal:host-gateway"
-
-
+ 
+ 
   frontend:
+
     build:
+
       context: ./Frontend
+
       dockerfile: Dockerfile
 
       args:
+
         VITE_API_ORIGIN: ${VITE_API_ORIGIN}
-
+ 
     image: clientems-frontend:${IMAGE_TAG:-latest}
+
     container_name: clientems-frontend
+
     restart: unless-stopped
-
+ 
     depends_on:
-      - backend
 
+      - backend
+ 
     ports:
-      - "3000:3000"
+
+      - "3000:8080"
+ 
