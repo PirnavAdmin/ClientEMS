@@ -85,11 +85,27 @@ namespace EmployeeManagementSystem.Services
             int monthNumber = parsedMonth.Month;
             int yearValue = year;
 
+           
+
+            // Check if payslip already exists
+            bool alreadyExists = await _context.PaySlips
+                .AsNoTracking()
+                .AnyAsync(x =>
+                    x.EmployeeId == employeeId &&
+                    x.Year == yearValue &&
+                    x.Month.ToLower() == month.ToLower());
+
+            if (alreadyExists)
+            {
+                throw new Exception(
+                    $"Payslip already generated for {employeeId} - {month} {yearValue}");
+            }
+
             //--------------------------------
             // SALARY STRUCTURE
             //--------------------------------
 
-            
+
 
             //--------------------------------
             // ATTENDANCE
@@ -1267,7 +1283,7 @@ namespace EmployeeManagementSystem.Services
                 {
                     // Start with 4.
                     // Increase only if your SMTP provider allows it.
-                    MaxDegreeOfParallelism = 4
+                    MaxDegreeOfParallelism = 8
                 };
 
 

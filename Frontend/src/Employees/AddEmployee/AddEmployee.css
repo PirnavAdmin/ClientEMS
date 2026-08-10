@@ -4288,3 +4288,8 @@ button:disabled,
     display:block;
 }
 
+.salary-info-card input::placeholder {
+  color: #8a9bb0;
+  font-size: 12px;
+  opacity: 1;
+}

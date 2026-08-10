@@ -81,30 +81,6 @@ function LeaveManagement() {
     };
   };
 
-  const normalizeLeaveBalanceCards = (payload) => {
-    const data = payload?.data || payload || {};
-    const types = [
-      ["Annual", ["annualLeave", "AnnualLeave", "annual"]],
-      ["Casual", ["casualLeave", "CasualLeave", "casual"]],
-      ["Medical", ["medicalLeave", "MedicalLeave", "medical"]],
-      ["Sick", ["sickLeave", "SickLeave", "sick"]],
-      ["Comp Off", ["compOff", "CompOff", "compensatoryOff"]],
-      ["LOP", ["lop", "LOP", "lossOfPay"]],
-      ["Remaining", ["remainingLeave", "RemainingLeave", "remaining"]],
-      ["Consumed", ["consumedLeave", "ConsumedLeave", "used"]],
-      ["Total", ["totalLeave", "TotalLeave", "total"]],
-    ];
-
-    return types.map(([label, keys]) => {
-      const value = firstDefined(...keys.map((key) => data[key]), 0);
-      const displayValue = typeof value === "object"
-        ? firstDefined(value.remaining, value.Remaining, value.balance, value.Balance, value.total, value.Total, 0)
-        : value;
-
-      return { label, value: displayValue };
-    });
-  };
-
   /* ================= FETCH LEAVES ================= */
   const fetchLeaves = async () => {
     try {

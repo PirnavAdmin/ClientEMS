@@ -2778,3 +2778,52 @@ body.app-modal-open .sidebar-backdrop {
   }
 }
 
+/* =========================================================
+   GLOBAL TOASTIFY FIX
+   ========================================================= */
+
+.Toastify__toast-container {
+  z-index: 999999 !important;
+  top: 80px !important;
+  right: 20px !important;
+  width: 380px !important;
+  max-width: calc(100vw - 40px) !important;
+}
+
+.Toastify__toast {
+  width: 100% !important;
+  min-height: 55px !important;
+  box-sizing: border-box !important;
+  padding: 12px 14px !important;
+  margin-bottom: 10px !important;
+  border-radius: 10px !important;
+  overflow: visible !important;
+}
+
+.Toastify__toast-body {
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+  line-height: 1.4 !important;
+  font-size: 14px !important;
+}
+
+.Toastify__close-button {
+  opacity: 0.8 !important;
+  align-self: flex-start !important;
+  margin-left: 8px !important;
+}
+
+@media (max-width: 576px) {
+  .Toastify__toast-container {
+    top: 70px !important;
+    right: 10px !important;
+    left: 10px !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+}

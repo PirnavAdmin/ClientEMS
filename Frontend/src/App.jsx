@@ -8,8 +8,8 @@ import ProtectedRoute from "./routes/ProtectedRoute";
 import GlobalUiController from "./components/GlobalUiController";
 import { AdminPermissionProvider } from "./context/AdminPermissionContext";
 import { EmployeePermissionProvider } from "./context/EmployeePermissionContext";
-import "./components/common/Toast/toast.css";
-import { toastTransition } from "./components/common/Toast/toastService";
+import "./components/common/toast/toast.css";
+import { toastTransition } from "./components/common/toast/toastService";
 import { getStoredToken } from "./utils/authStorage";
 import { hasEmployeeIdClaim, hasRole } from "./utils/authorization";
 import {

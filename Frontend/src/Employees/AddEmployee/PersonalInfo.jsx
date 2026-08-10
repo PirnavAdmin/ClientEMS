@@ -4,16 +4,14 @@ import api from "../../api/axiosInstance";
 import { API_ENDPOINTS } from "../../api/endpoints";
 import AppDatePicker from "../../components/AppDatePicker";
 import { extractCollection } from "../../utils/collections";
-import { formatEmployeeCode } from "../../utils/formatters";
 import { toIsoDateString } from "../../utils/date";
 import {
   normalizeWhitespace,
-  sanitizeAlphaNumericInput,
   sanitizeEmailInput,
   sanitizeLettersAndSpaces,
   sanitizePhoneInput,
   validateEmailAddress,
-  validateEmployeeId,
+  // validateEmployeeId,
   validateEmployeeName,
   validatePhoneNumber,
 } from "../../utils/validation";
@@ -44,7 +42,7 @@ const INITIAL_FORM_DATA = {
   pincode: "",
 };
 
-function PersonalInfo({ onNext, viewMode, data }) {
+function PersonalInfo({ onNext, viewMode, data, employeeId }) {
   // Temporarily hidden until finalized
   const isWorkExperienceFieldHidden = true;
 
@@ -56,40 +54,50 @@ function PersonalInfo({ onNext, viewMode, data }) {
   const [departments, setDepartments] = useState([]);
 
   useEffect(() => {
-    if (!data) {
-      return;
-    }
+  setFormData((prev) => ({
+    ...INITIAL_FORM_DATA,
 
-    setFormData({
-      ...INITIAL_FORM_DATA,
-      employeeId: String(data.employee_Id ?? ""),
-      firstName: String(data.firstName ?? ""),
-      middleName: String(data.middleName ?? ""),
-      lastName: String(data.lastName ?? ""),
-      dob: data.dateOfBirth ? data.dateOfBirth.split("T")[0] : "",
-      gender: String(data.gender ?? ""),
-      maritalStatus: String(data.marital_Status ?? ""),
-      phone: String(data.phoneNumber ?? ""),
-      email: String(data.email ?? ""),
-      aadhaar: String(data.aadhaarNumber ?? ""),
-      pan: String(data.panNumber ?? ""),
-      department: String(data.department ?? ""),
-      designation: String(data.designation ?? ""),
-      joiningDate: data.joiningDate ? data.joiningDate.split("T")[0] : "",
-      workExperience:
-        data.workExperience !== undefined && data.workExperience !== null
-          ? String(data.workExperience)
-          : "",
-      bloodGroup: String(data.bloodGroup ?? ""),
-      houseNo: String(data.houseNo ?? ""),
-      street: String(data.street ?? ""),
-      city: String(data.city ?? ""),
-      district: String(data.district ?? ""),
-      state: String(data.state ?? ""),
-      country: String(data.country ?? ""),
-      pincode: String(data.pincode ?? ""),
-    });
-  }, [data]);
+    // Automatically get Employee ID from profile data or route/prop
+    employeeId: String(
+      data?.employee_Id ??
+      data?.employeeId ??
+      employeeId ??
+      prev.employeeId ??
+      ""
+    ),
+
+    firstName: String(data?.firstName ?? ""),
+    middleName: String(data?.middleName ?? ""),
+    lastName: String(data?.lastName ?? ""),
+    dob: data?.dateOfBirth
+      ? data.dateOfBirth.split("T")[0]
+      : "",
+    gender: String(data?.gender ?? ""),
+    maritalStatus: String(data?.marital_Status ?? ""),
+    phone: String(data?.phoneNumber ?? ""),
+    email: String(data?.email ?? ""),
+    aadhaar: String(data?.aadhaarNumber ?? ""),
+    pan: String(data?.panNumber ?? ""),
+    department: String(data?.department ?? ""),
+    designation: String(data?.designation ?? ""),
+    joiningDate: data?.joiningDate
+      ? data.joiningDate.split("T")[0]
+      : "",
+    workExperience:
+      data?.workExperience !== undefined &&
+      data?.workExperience !== null
+        ? String(data.workExperience)
+        : "",
+    bloodGroup: String(data?.bloodGroup ?? ""),
+    houseNo: String(data?.houseNo ?? ""),
+    street: String(data?.street ?? ""),
+    city: String(data?.city ?? ""),
+    district: String(data?.district ?? ""),
+    state: String(data?.state ?? ""),
+    country: String(data?.country ?? ""),
+    pincode: String(data?.pincode ?? ""),
+  }));
+}, [data, employeeId]);
 
   useEffect(() => {
     const fetchDepartments = async () => {
@@ -126,10 +134,6 @@ function PersonalInfo({ onNext, viewMode, data }) {
 
     if (name === "pan") {
       nextValue = value.toUpperCase();
-    }
-
-    if (name === "employeeId") {
-      nextValue = sanitizeAlphaNumericInput(formatEmployeeCode(value), 10);
     }
 
     if (name === "houseNo") {
@@ -178,14 +182,14 @@ function PersonalInfo({ onNext, viewMode, data }) {
   const validate = () => {
     const nextErrors = {};
 
-    const employeeIdError = validateEmployeeId(formData.employeeId, {
-      label: "Employee ID",
-      min: 3,
-      max: 10,
-    });
-    if (employeeIdError) {
-      nextErrors.employeeId = employeeIdError;
-    }
+    // const employeeIdError = validateEmployeeId(formData.employeeId, {
+    //   label: "Employee ID",
+    //   min: 3,
+    //   max: 10,
+    // });
+    // if (employeeIdError) {
+    //   nextErrors.employeeId = employeeIdError;
+    // }
 
     const firstNameError = validateEmployeeName(formData.firstName, {
       label: "First Name",
@@ -437,9 +441,18 @@ function PersonalInfo({ onNext, viewMode, data }) {
       <div className="form-card">
         <div className="form-grid">
           <div className="form-group">
-            <label>Employee ID<span className="required">*</span></label>
-            <input type="text" name="employeeId" value={formData.employeeId} onChange={handleChange} className={getFieldClassName("employeeId")} disabled={viewMode} />
-            {renderError("employeeId")}
+            <label>
+              Employee ID<span className="required">*</span>
+            </label>
+
+            <input
+              type="text"
+              name="employeeId"
+              value={formData.employeeId}
+              className={getFieldClassName("employeeId")}
+              readOnly
+              disabled
+            />
           </div>
 
           <div className="form-group">
@@ -543,7 +556,7 @@ function PersonalInfo({ onNext, viewMode, data }) {
             </select>
             {renderError("designation")}
           </div>
- 
+
 
           <div className="form-group">
             <label>Date of Joining<span className="required">*</span></label>
@@ -584,6 +597,7 @@ function PersonalInfo({ onNext, viewMode, data }) {
               <option value="AB-">AB-</option>
               <option value="O+">O+</option>
               <option value="O-">O-</option>
+              <option value="others">Others</option>
             </select>
             {renderError("bloodGroup")}
           </div>

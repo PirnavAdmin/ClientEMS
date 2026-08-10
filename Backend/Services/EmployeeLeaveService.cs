@@ -7,11 +7,7 @@ using EmployeeManagementSystem.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OpenXmlPowerTools;
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Security.Claims;
-using System.Threading.Tasks;
 
 public class EmployeeLeaveService : IEmployeeLeaveService
 
@@ -535,50 +531,74 @@ Employee Management System
         //    _context.EmployeeLeaveBalances.Add(balance);
         //    await _context.SaveChangesAsync();
         //}
-
         var email = user.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
-
-        var loggedInUser = await _context.Employees
-            .FirstOrDefaultAsync(x => x.Email.ToLower() == email);
-
-        if (loggedInUser == null)
-            return new UnauthorizedObjectResult("User not found");
-        var approver = await _context.Employees
-            .FirstOrDefaultAsync(x => x.Employee_Id == loggedInUser.Employee_Id);
 
         string approverName = "";
 
-        if (!string.IsNullOrWhiteSpace(approver?.Name))
+        // ----------------------------------------------------
+        // First check Employees
+        // ----------------------------------------------------
+
+        var loggedInEmployee = await _context.Employees
+            .FirstOrDefaultAsync(x => x.Email.ToLower() == email);
+
+        if (loggedInEmployee != null)
         {
-            approverName = approver.Name
-                .Trim()
-                .Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
-                .FirstOrDefault() ?? "";
+            approverName = loggedInEmployee.Name;
         }
-        var role = loggedInUser.RoleName?.Trim();
+        else
+        {
+            // ------------------------------------------------
+            // If not an employee, check Admins table
+            // ------------------------------------------------
 
-        //if (!string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase) &&
-        //    !string.Equals(role, "HR", StringComparison.OrdinalIgnoreCase))
-        //{
-        //    return new BadRequestObjectResult(
-        //        "Only Manager or HR can approve leave");
-        //}
-        Console.WriteLine($"Original Name = {approver.Name}");
-        Console.WriteLine($"First Name = {approverName}");
+            var admin = await _context.Admins
+                .FirstOrDefaultAsync(x => x.Email.ToLower() == email);
 
-        // Save approver details
+            if (admin == null)
+                return new UnauthorizedObjectResult("User not found");
+
+            // If Admin table has Name column
+            // approverName = admin.Name;
+
+            // Otherwise use email
+            approverName = admin.Email?
+     .Split('@')[0]
+     .Trim();
+        }
+
+        // Take only first name
+        approverName = approverName
+            .Trim()
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault() ?? approverName;
+        //var role = loggedInUser.RoleName?.Trim();
+
+        ////if (!string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase) &&
+        ////    !string.Equals(role, "HR", StringComparison.OrdinalIgnoreCase))
+        ////{
+        ////    return new BadRequestObjectResult(
+        ////        "Only Manager or HR can approve leave");
+        ////}
+        //Console.WriteLine($"Original Name = {approver.Name}");
+        //Console.WriteLine($"First Name = {approverName}");
+
+        //// Save approver details
 
         leave.ApprovedBy = approverName;
         leave.ApprovedOn = DateTime.UtcNow;
-        if (string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase))
-        {
-            leave.ManagerStatus = status;
-        }
 
-        if (string.Equals(role, "HR", StringComparison.OrdinalIgnoreCase))
-        {
-            leave.HRStatus = status;
-        }
+        leave.ManagerStatus = status;
+        leave.HRStatus = status;
+        //if (string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase))
+        //{
+        //    leave.ManagerStatus = status;
+        //}
+
+        //if (string.Equals(role, "HR", StringComparison.OrdinalIgnoreCase))
+        //{
+        //    leave.HRStatus = status;
+        //}
         var employee = await _context.Employees
     .FirstOrDefaultAsync(x => x.Employee_Id == leave.EmployeeId);
         if (status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
@@ -1944,53 +1964,65 @@ Employee Management System
 
         var email = user.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
 
-        var loggedInUser = await _context.Employees
-            .FirstOrDefaultAsync(x => x.Email.ToLower() == email);
-
-        if (loggedInUser == null)
-            return new UnauthorizedObjectResult("User not found");
-
-        var approver = await _context.Employees
-            .FirstOrDefaultAsync(x => x.Employee_Id == loggedInUser.Employee_Id);
-
         string approverName = "";
 
-        if (!string.IsNullOrWhiteSpace(approver?.Name))
+        // Check Employees
+        var loggedInEmployee = await _context.Employees
+            .FirstOrDefaultAsync(x => x.Email.ToLower() == email);
+
+        if (loggedInEmployee != null)
         {
-            approverName = approver.Name
-                .Trim()
-                .Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
-                .FirstOrDefault() ?? "";
+            approverName = loggedInEmployee.Name;
+        }
+        else
+        {
+            // Check Admins
+            var admin = await _context.Admins
+                .FirstOrDefaultAsync(x => x.Email.ToLower() == email);
+
+            if (admin == null)
+                return new UnauthorizedObjectResult("User not found");
+
+            // show only before @
+            approverName = admin.Email.Split('@')[0];
         }
 
-        var role = loggedInUser.RoleName?.Trim();
+        // Employee names -> first name only
+        if (!approverName.Contains("@"))
+        {
+            approverName = approverName
+                .Trim()
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .FirstOrDefault() ?? approverName;
+        }
+        //var role = loggedInUser.RoleName?.Trim();
 
-        //if (!string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase) &&
-        //    !string.Equals(role, "HR", StringComparison.OrdinalIgnoreCase) &&
-        //    !!string.Equals(role, "HRAdmin", StringComparison.OrdinalIgnoreCase))
+        ////if (!string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase) &&
+        ////    !string.Equals(role, "HR", StringComparison.OrdinalIgnoreCase) &&
+        ////    !!string.Equals(role, "HRAdmin", StringComparison.OrdinalIgnoreCase))
 
+        ////{
+        ////    return new BadRequestObjectResult(
+        ////        "Only Manager or HR can approve WFH");
+        ////}
+
+        //request.ApprovedBy = approverName;
+        //request.ApprovedOn = DateTime.UtcNow;
+
+        //if (string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase))
         //{
-        //    return new BadRequestObjectResult(
-        //        "Only Manager or HR can approve WFH");
+        //    request.ManagerStatus = status;
         //}
 
-        request.ApprovedBy = approverName;
-        request.ApprovedOn = DateTime.UtcNow;
+        //if (string.Equals(role, "HR", StringComparison.OrdinalIgnoreCase))
+        //{
+        //    request.HRStatus = status;
+        //}
+        //if (string.Equals(role, "HRAdmin", StringComparison.OrdinalIgnoreCase))
 
-        if (string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase))
-        {
-            request.ManagerStatus = status;
-        }
-
-        if (string.Equals(role, "HR", StringComparison.OrdinalIgnoreCase))
-        {
-            request.HRStatus = status;
-        }
-        if (string.Equals(role, "HRAdmin", StringComparison.OrdinalIgnoreCase))
-
-        {
-            request.HRStatus = status;
-        }
+        //{
+        //    request.HRStatus = status;
+        //}
         var employee = await _context.Employees
             .FirstOrDefaultAsync(x => x.Employee_Id == request.EmployeeId);
 
@@ -2573,7 +2605,7 @@ Employee Management System
             }
         }
 
-        return new OkObjectResult($"Work From Home {request.Status} Successfully");
+        return new OkObjectResult($"Work From Home {request.Status} Successfully"); 
     }
 
 

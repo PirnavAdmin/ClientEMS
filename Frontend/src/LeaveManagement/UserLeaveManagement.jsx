@@ -130,7 +130,7 @@ function UserLeaveManagement() {
 
   // ✅ use backend values here
   const [form, setForm] = useState({
-    leaveType: "Casual",
+    leaveType: "",
     fromDate: "",
     toDate: "",
     reason: ""

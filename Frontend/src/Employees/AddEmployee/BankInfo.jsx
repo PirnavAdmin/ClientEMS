@@ -322,6 +322,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               inputMode="numeric"
               autoComplete="off"
               value={annualCTC}
+              placeholder="Enter annual CTC (e.g. 600000)"
               onChange={(e) =>
                 handleSalaryInput(
                   "annualCTC",
@@ -344,6 +345,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               type="text"
               inputMode="numeric"
               autoComplete="off"
+              placeholder="Enter basic salary (e.g. 300000)"
               value={basicSalary}
               onChange={(e) =>
                 handleSalaryInput(
@@ -368,6 +370,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               inputMode="numeric"
               autoComplete="off"
               value={hra}
+              placeholder="Enter HRA amount (e.g. 120000)"
               onChange={(e) =>
                 handleSalaryInput(
                   "hra",
@@ -391,6 +394,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               inputMode="numeric"
               autoComplete="off"
               value={conveyanceAllowance}
+              placeholder="Enter conveyance allowance (e.g. 24000)"
               onChange={(e) =>
                 handleSalaryInput(
                   "conveyanceAllowance",
@@ -415,6 +419,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               inputMode="numeric"
               autoComplete="off"
               value={medicalAllowance}
+              placeholder="Enter medical allowance (e.g. 15000)"
               onChange={(e) => handleSalaryInput(
                 "medicalAllowance",
                 e.target.value,
@@ -437,6 +442,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               inputMode="numeric"
               autoComplete="off"
               value={specialAllowance}
+              placeholder="Enter special allowance (e.g. 50000)"
               onChange={(e) => handleSalaryInput(
                 "specialAllowance",
                 e.target.value,
@@ -459,6 +465,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               inputMode="numeric"
               autoComplete="off"
               value={employeePF}
+              placeholder="Enter employee PF (e.g. 1800)"
               onChange={(e) => handleSalaryInput(
                 "employeePF",
                 e.target.value,
@@ -481,6 +488,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               inputMode="numeric"
               autoComplete="off"
               value={employerPF}
+              placeholder="Enter employer PF (e.g. 1800)"
               onChange={(e) => handleSalaryInput(
                 "employerPF",
                 e.target.value,
@@ -503,6 +511,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               inputMode="numeric"
               autoComplete="off"
               value={professionalTax}
+              placeholder="Enter professional tax (e.g. 200)"
               onChange={(e) => handleSalaryInput(
                 "professionalTax",
                 e.target.value,
@@ -525,6 +534,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               inputMode="numeric"
               autoComplete="off"
               value={tds}
+              placeholder="Enter TDS amount (e.g. 2500)"
               onChange={(e) => handleSalaryInput(
                 "tds",
                 e.target.value,
@@ -547,6 +557,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               inputMode="numeric"
               autoComplete="off"
               value={otherDeduction}
+              placeholder="Enter other deduction (e.g. 1000)"
               onChange={(e) => handleSalaryInput(
                 "otherDeduction",
                 e.target.value,
