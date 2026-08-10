@@ -398,7 +398,8 @@ namespace EmployeeManagementSystem.Data
             modelBuilder.Entity<WorkflowHistory>()
                 .ToTable("workflowhistory");
 
-            
+            modelBuilder.Entity<EmployeeSalaryStructure>()
+    .ToTable("employeesalarystructures");
 
             modelBuilder.Entity<RolePermission>()
 
