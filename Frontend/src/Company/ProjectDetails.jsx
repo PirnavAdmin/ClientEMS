@@ -1575,28 +1575,6 @@ function ProjectDetails() {
               assign unassigned work.
             </p>
           </div>
-
-          <div className="project-details-ticket-actions">
-            <button
-              type="button"
-              className="ticket-button secondary"
-              onClick={() => setBulkUploadOpen(true)}
-              disabled={!projectId}
-            >
-              <FaCloudUploadAlt aria-hidden="true" />
-              Bulk Upload Tickets
-            </button>
-
-            <button
-              type="button"
-              className="ticket-button primary"
-              onClick={() => setAutoAssignOpen(true)}
-              disabled={!projectId}
-            >
-              <FaSyncAlt aria-hidden="true" />
-              Auto Assign
-            </button>
-          </div>
         </div>
 
         {projectTicketsLoading ? (
