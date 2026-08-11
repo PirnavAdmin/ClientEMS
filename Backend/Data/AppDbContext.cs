@@ -313,10 +313,10 @@ namespace EmployeeManagementSystem.Data
             modelBuilder.Entity<AgreementMaster>()
     .ToTable("agreementmaster");
 
-            modelBuilder.Entity<Company>().ToTable("Company");
+            modelBuilder.Entity<Company>().ToTable("company");
 
             modelBuilder.Entity<Module>().ToTable("modules");
-            modelBuilder.Entity<Team>().ToTable("Teams");
+            modelBuilder.Entity<Team>().ToTable("teams");
             modelBuilder.Entity<TeamMember>().ToTable("teammembers");
             modelBuilder.Entity<TeamMemberOverride>().ToTable("teammemberoverrides");
             modelBuilder.Entity<TeamReportingDay>().ToTable("teamreportingdays");
@@ -376,6 +376,20 @@ namespace EmployeeManagementSystem.Data
     .ToTable("employeegoal");
             modelBuilder.Entity<Appraisal>()
     .ToTable("appraisal");
+            modelBuilder.Entity<OnboardingCandidate>()
+    .ToTable("onboardingcandidates");
+
+            modelBuilder.Entity<OnboardingPersonalInfo>()
+                .ToTable("onboardingpersonalinfo");
+
+            modelBuilder.Entity<OnboardingEducation>()
+                .ToTable("onboardingeducation");
+
+            modelBuilder.Entity<OnboardingExperience>()
+                .ToTable("onboardingexperience");
+
+            modelBuilder.Entity<OnboardingDocument>()
+                .ToTable("onboardingdocuments");
 
             modelBuilder.Entity<GoalReview>()
                 .ToTable("goalreview");
@@ -400,6 +414,8 @@ namespace EmployeeManagementSystem.Data
 
             modelBuilder.Entity<EmployeeSalaryStructure>()
     .ToTable("employeesalarystructures");
+            modelBuilder.Entity<EmployeeDocument>()
+    .ToTable("employeedocuments");
 
             modelBuilder.Entity<RolePermission>()
 
