@@ -29,8 +29,6 @@ import {
   validateTinNumber,
 } from "../utils/validation";
 
-const COMPANY_ID = 1;
-
 const EMPTY_BRANCH = {
   name: "",
   established: "",
@@ -114,6 +112,7 @@ function CompanyDetails() {
   const [branches, setBranches] = useState([]);
   const [modalType, setModalType] = useState(null);
   const [selectedBranch, setSelectedBranch] = useState(null);
+  const [companyId, setCompanyId] = useState(null);
   const [showBranchPopup, setShowBranchPopup] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [branchForm, setBranchForm] = useState(EMPTY_BRANCH);
@@ -123,25 +122,32 @@ function CompanyDetails() {
   const [companySaving, setCompanySaving] = useState(false);
   const [branchSaving, setBranchSaving] = useState(false);
 
-  const fetchCompany = async () => {
-    try {
-      const res = await api.get(API_ENDPOINTS.company.getById(COMPANY_ID));
-      const data = res.data || {};
+  const fetchCompany = async (id) => {
+  if (!id) return;
 
-      setCompany({
-        name: data.companyName || "",
-        established: data.establishedDate?.split("T")[0] || "",
-        phone: sanitizePhoneInput(data.phoneNumber, 10),
-        email: data.emailAddress || "",
-        gst: sanitizeAlphaNumericInput(data.gstNumber, 15),
-        tin: sanitizeDigitsInput(data.tinNumber, 11),
-        pan: sanitizeAlphaNumericInput(data.panNumber, 10),
-      });
-    } catch (error) {
-      console.error("Company fetch error:", error);
-      toastError("Failed to load company details.");
-    }
-  };
+  try {
+    const res = await api.get(
+      API_ENDPOINTS.company.getById(id)
+    );
+
+    const data = res.data || {};
+
+    setCompanyId(data.id);
+
+    setCompany({
+      name: data.companyName || "",
+      established: data.establishedDate?.split("T")[0] || "",
+      phone: sanitizePhoneInput(data.phoneNumber, 10),
+      email: data.emailAddress || "",
+      gst: sanitizeAlphaNumericInput(data.gstNumber, 15),
+      tin: sanitizeDigitsInput(data.tinNumber, 11),
+      pan: sanitizeAlphaNumericInput(data.panNumber, 10),
+    });
+  } catch (error) {
+    console.error("Company fetch error:", error);
+    toastError("Failed to load company details.");
+  }
+};
 
   const fetchBranches = async () => {
     try {
