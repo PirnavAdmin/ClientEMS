@@ -885,6 +885,7 @@ export const API_ENDPOINTS = {
 },
   company: {
     // 🔥 ADD THIS (MAIN COMPANY APIs)
+    list: "/Company",
     create: "/Company",
     getById: (id) => `/Company/${id}`,
     update: (id) => `/Company/${id}`,

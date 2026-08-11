@@ -23,10 +23,26 @@ namespace EmployeeManagementSystem.Controllers
             _context = context;
         }
 
+        // GET: api/company
+        //[Permission(ModuleIds.CompanyDetails, PermissionAction.View)]
+        [HttpGet]
+        public async Task<IActionResult> GetCompany()
+        {
+            var company = await _context.Company
+                .AsNoTracking()
+                .OrderBy(x => x.Id)
+                .FirstOrDefaultAsync();
+
+            if (company == null)
+                return NotFound(new { message = "Company not found." });
+
+            return Ok(company);
+        }
+
         // ✅ GET: api/company/{id}
         //[Permission(ModuleIds.CompanyDetails, PermissionAction.View)]
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetCompany(int id)
+        public async Task<IActionResult> GetCompanyById(int id)
         {
             var company = await _context.Company.FindAsync(id);
 
@@ -53,7 +69,7 @@ namespace EmployeeManagementSystem.Controllers
                 GSTNumber = dto.GSTNumber,
                 TINNumber = dto.TINNumber,
                 PANNumber = dto.PANNumber,
-                TotalBranches = dto.TotalBranches,
+                TotalBranches = dto.TotalBranches ?? 0,
                 UpdatedAt = DateTime.UtcNow
             };
 
@@ -61,7 +77,7 @@ namespace EmployeeManagementSystem.Controllers
             await _context.SaveChangesAsync();
 
             return CreatedAtAction(
-                nameof(GetCompany),
+                nameof(GetCompanyById),
                 new { id = company.Id },
                 new
                 {
@@ -90,7 +106,10 @@ namespace EmployeeManagementSystem.Controllers
             company.GSTNumber = dto.GSTNumber;
             company.TINNumber = dto.TINNumber;
             company.PANNumber = dto.PANNumber;
-            company.TotalBranches = dto.TotalBranches;
+            if (dto.TotalBranches.HasValue)
+            {
+                company.TotalBranches = dto.TotalBranches.Value;
+            }
             company.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();

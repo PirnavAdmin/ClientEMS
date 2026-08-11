@@ -313,7 +313,7 @@ namespace EmployeeManagementSystem.Data
             modelBuilder.Entity<AgreementMaster>()
     .ToTable("agreementmaster");
 
-            modelBuilder.Entity<Company>().ToTable("company");
+            modelBuilder.Entity<Company>().ToTable("Company");
 
             modelBuilder.Entity<Module>().ToTable("modules");
             modelBuilder.Entity<Team>().ToTable("teams");

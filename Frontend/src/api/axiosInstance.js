@@ -50,11 +50,43 @@ const headersForLogging = (headers) => {
     return {};
   }
 
-  if (typeof headers.toJSON === "function") {
-    return headers.toJSON();
+  const normalizedHeaders =
+    typeof headers.toJSON === "function"
+      ? headers.toJSON()
+      : { ...headers };
+
+  return Object.entries(normalizedHeaders).reduce((acc, [key, value]) => {
+    acc[key] = String(key).toLowerCase() === "authorization" ? "[redacted]" : value;
+    return acc;
+  }, {});
+};
+
+const SENSITIVE_LOG_KEYS = new Set([
+  "password",
+  "token",
+  "authtoken",
+  "jwttoken",
+  "accesstoken",
+  "refreshtoken",
+  "bearertoken",
+]);
+
+const sanitizeForLogging = (value) => {
+  if (!value || typeof value !== "object") {
+    return value ?? null;
   }
 
-  return { ...headers };
+  if (Array.isArray(value)) {
+    return value.map(sanitizeForLogging);
+  }
+
+  return Object.entries(value).reduce((acc, [key, nestedValue]) => {
+    const normalizedKey = String(key).replace(/[_-]+/g, "").toLowerCase();
+    acc[key] = SENSITIVE_LOG_KEYS.has(normalizedKey)
+      ? "[redacted]"
+      : sanitizeForLogging(nestedValue);
+    return acc;
+  }, {});
 };
  
 // =========================
@@ -182,24 +214,6 @@ const shouldForceLogout = (
   getStoredToken() &&
   isAuthenticationFailureResponse(status, data);
 
-const isNetworkOrTimeoutError = (error) => {
-  if (!error) {
-    return false;
-  }
-
-  if (error.code === "ECONNABORTED") {
-    return true;
-  }
-
-  const message = String(error.message || "").toLowerCase();
-
-  return (
-    message.includes("timeout") ||
-    message.includes("network error") ||
-    (!error.response && Boolean(error.request))
-  );
-};
-
 // =========================
 // REQUEST INTERCEPTOR
 // =========================
@@ -242,8 +256,8 @@ api.interceptors.request.use(
       baseURL: config.baseURL || BASE_URL,
       params: config.params || {},
       headers: headersForLogging(config.headers),
-      token,
-      body: config.data ?? null,
+      hasToken: Boolean(token),
+      body: sanitizeForLogging(config.data),
       userRole,
     });
  
@@ -304,7 +318,15 @@ api.interceptors.response.use(
         ?.performanceLabel
     );
 
-    console.log("Response:", response);
+    console.log("API Response", {
+      status: response.status,
+      url: resolveRequestUrl(
+        response?.config?.url || "",
+        response?.config?.baseURL || BASE_URL
+      ),
+      method: String(response?.config?.method || "get").toUpperCase(),
+      data: sanitizeForLogging(response.data),
+    });
  
     const responseType =
       response?.config
@@ -385,9 +407,9 @@ api.interceptors.response.use(
       method: String(config?.method || error?.response?.config?.method || "get").toUpperCase(),
       params: config?.params || error?.response?.config?.params || {},
       headers: headersForLogging(config?.headers || error?.response?.config?.headers),
-      token: getStoredToken(),
-      body: config?.data ?? error?.response?.config?.data ?? null,
-      responseData: data,
+      hasToken: Boolean(getStoredToken()),
+      body: sanitizeForLogging(config?.data ?? error?.response?.config?.data),
+      responseData: sanitizeForLogging(data),
     });
 
     if (

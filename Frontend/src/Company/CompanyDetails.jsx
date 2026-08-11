@@ -18,15 +18,7 @@ import {
   sanitizeAlphaNumericInput,
   sanitizeDigitsInput,
   sanitizeEmailInput,
-  sanitizeLeadingWhitespace,
-  sanitizeLettersAndSpaces,
   sanitizePhoneInput,
-  validateEmailAddress,
-  validateEmployeeName,
-  validateGstNumber,
-  validatePanNumber,
-  validatePhoneNumber,
-  validateTinNumber,
 } from "../utils/validation";
 
 const EMPTY_BRANCH = {
@@ -44,7 +36,95 @@ const createEmptyCompany = () => ({
   gst: "",
   tin: "",
   pan: "",
+  totalBranches: 0,
+  updatedAt: "",
 });
+
+const EMAIL_PATTERN = /^[A-Za-z][A-Za-z0-9._%+-]*@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+
+const COMPANY_ID_KEYS = [
+  "id",
+  "Id",
+  "ID",
+  "companyId",
+  "company_Id",
+  "companyID",
+  "CompanyId",
+  "Company_Id",
+  "CompanyID",
+];
+
+const getValueFromRecord = (record, keys) => {
+  if (!record || typeof record !== "object") {
+    return null;
+  }
+
+  for (const key of keys) {
+    const value = record[key];
+
+    if (
+      value !== null &&
+      value !== undefined &&
+      String(value).trim() !== ""
+    ) {
+      return value;
+    }
+  }
+
+  return null;
+};
+
+const hasCompanyId = (value) => {
+  if (
+    value === null ||
+    value === undefined ||
+    String(value).trim() === ""
+  ) {
+    return false;
+  }
+
+  return true;
+};
+
+const unwrapRecordPayload = (payload) =>
+  payload?.data && typeof payload.data === "object" && !Array.isArray(payload.data)
+    ? payload.data
+    : payload;
+
+const resolveCompanyIdFromResponse = (data, fallbackId) =>
+  getValueFromRecord(unwrapRecordPayload(data), COMPANY_ID_KEYS) ??
+  fallbackId;
+
+const getCompanyRecordFromPayload = (payload) => {
+  const companies = extractCollection(payload);
+
+  if (companies.length > 0) {
+    return companies[0];
+  }
+
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    const nestedCandidates = [
+      payload.data,
+      payload.record,
+      payload.company,
+      payload.companyRecord,
+      payload.result,
+      payload.response,
+    ];
+
+    for (const candidate of nestedCandidates) {
+      if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
+        return candidate;
+      }
+    }
+
+    if (getValueFromRecord(payload, COMPANY_ID_KEYS)) {
+      return payload;
+    }
+  }
+
+  return null;
+};
 
 const isFutureDate = (value) => {
   if (!value) {
@@ -112,27 +192,31 @@ function CompanyDetails() {
   const [branches, setBranches] = useState([]);
   const [modalType, setModalType] = useState(null);
   const [selectedBranch, setSelectedBranch] = useState(null);
-  const [companyId, setCompanyId] = useState(null);
   const [showBranchPopup, setShowBranchPopup] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [branchForm, setBranchForm] = useState(EMPTY_BRANCH);
   const [editingBranchId, setEditingBranchId] = useState(null);
   const [branchErrors, setBranchErrors] = useState({});
   const [companyErrors, setCompanyErrors] = useState({});
+  const [companyId, setCompanyId] = useState(null);
   const [companySaving, setCompanySaving] = useState(false);
   const [branchSaving, setBranchSaving] = useState(false);
 
   const fetchCompany = async (id) => {
-    if (!id) return;
+    if (!hasCompanyId(id)) {
+      console.error("Company fetch skipped: Company ID is missing.");
+      toastError("Company ID is missing.");
+      return;
+    }
 
     try {
-      const res = await api.get(
-        API_ENDPOINTS.company.getById(id)
-      );
+      const res = await api.get(API_ENDPOINTS.company.getById(id));
+      const data = unwrapRecordPayload(res.data) || {};
+      const resolvedId = resolveCompanyIdFromResponse(data, id);
 
-      const data = res.data || {};
-
-      setCompanyId(data.id);
+      if (hasCompanyId(resolvedId)) {
+        setCompanyId(resolvedId);
+      }
 
       setCompany({
         name: data.companyName || "",
@@ -142,10 +226,21 @@ function CompanyDetails() {
         gst: sanitizeAlphaNumericInput(data.gstNumber, 15),
         tin: sanitizeDigitsInput(data.tinNumber, 11),
         pan: sanitizeAlphaNumericInput(data.panNumber, 10),
+        totalBranches: Number(data.totalBranches ?? 0),
+        updatedAt: data.updatedAt || "",
       });
     } catch (error) {
-      console.error("Company fetch error:", error);
-      toastError("Failed to load company details.");
+      console.error("Company fetch error:", error?.response?.data || error);
+
+      if (error?.response?.status === 404) {
+        toastError("Company details not found.");
+      } else if (error?.response?.status === 401) {
+        toastError("Session expired. Please login again.");
+      } else if (error?.response?.status === 403) {
+        toastError("You do not have permission to access company details.");
+      } else {
+        toastError("Failed to load company details.");
+      }
     }
   };
 
@@ -170,8 +265,77 @@ function CompanyDetails() {
   };
 
   useEffect(() => {
-    fetchCompany(1);
-    fetchBranches();
+    const loadCompany = async () => {
+      try {
+        // 1. First try to get company ID from login/session storage
+        let storedCompanyId =
+          localStorage.getItem("companyId") ||
+          localStorage.getItem("CompanyId") ||
+          sessionStorage.getItem("companyId") ||
+          sessionStorage.getItem("CompanyId");
+
+        // 2. If companyId is not stored, get it from Company API
+        if (!hasCompanyId(storedCompanyId)) {
+          console.log("Company ID not found in storage. Fetching company list...");
+
+          const response = await api.get(API_ENDPOINTS.company.list);
+
+          const companyRecord = getCompanyRecordFromPayload(response.data);
+
+          if (!companyRecord) {
+            toastError("Company details not found.");
+            return;
+          }
+
+          storedCompanyId = getValueFromRecord(
+            companyRecord,
+            COMPANY_ID_KEYS
+          );
+
+          console.log(
+            "Resolved Company ID from Company API:",
+            storedCompanyId
+          );
+
+          if (!hasCompanyId(storedCompanyId)) {
+            toastError("Company ID not found.");
+            return;
+          }
+
+          // Store it so Edit/Update can use the same ID
+          localStorage.setItem("companyId", String(storedCompanyId));
+        }
+
+        // 3. Save company ID in state
+        setCompanyId(storedCompanyId);
+
+        // 4. Get company details using /Company/{id}
+        await fetchCompany(storedCompanyId);
+
+        // 5. Load branches
+        await fetchBranches();
+
+      } catch (error) {
+        console.error(
+          "Failed to load company details:",
+          error?.response?.data || error
+        );
+
+        if (error?.response?.status === 404) {
+          toastError("Company details not found.");
+        } else if (error?.response?.status === 401) {
+          toastError("Session expired. Please login again.");
+        } else if (error?.response?.status === 403) {
+          toastError(
+            "You do not have permission to access company details."
+          );
+        } else {
+          toastError("Failed to load company details.");
+        }
+      }
+    };
+
+    loadCompany();
   }, []);
 
   const companyInfoItems = useMemo(
@@ -204,10 +368,18 @@ function CompanyDetails() {
       {
         icon: <FaSitemap />,
         label: "Branches",
-        value: String(branches.length),
+        value: String(company.totalBranches ?? branches.length),
       },
     ],
-    [branches.length, company.email, company.gst, company.pan, company.phone, company.tin]
+    [
+      branches.length,
+      company.email,
+      company.gst,
+      company.pan,
+      company.phone,
+      company.tin,
+      company.totalBranches,
+    ]
   );
 
   const resetBranchForm = () => {
@@ -231,6 +403,15 @@ function CompanyDetails() {
     setShowBranchPopup(false);
   };
 
+  const handleEditDetails = () => {
+    if (!hasCompanyId(companyId)) {
+      toastError("Company ID is missing.");
+      return;
+    }
+
+    setModalType("company");
+  };
+
   const handleCompanyChange = (event) => {
     const { name, value } = event.target;
     let nextValue = value;
@@ -251,7 +432,7 @@ function CompanyDetails() {
 
       nextValue = value
         .replace(/\s/g, "") // no spaces
-        .replace(/[^A-Za-z0-9@.]/g, "") // only alphabets numbers @ .
+        .replace(/[^A-Za-z0-9@._%+-]/g, "") // valid email characters
         .replace(/@{2,}/g, "@") // prevent multiple @ together
         .toLowerCase()
         .slice(0, 40);
@@ -311,7 +492,7 @@ function CompanyDetails() {
 
       nextValue = value
         .replace(/\s/g, "")
-        .replace(/[^A-Za-z0-9@.]/g, "")
+        .replace(/[^A-Za-z0-9@._%+-]/g, "")
         .replace(/@{2,}/g, "@")
         .toLowerCase()
         .slice(0, 40);
@@ -421,12 +602,14 @@ function CompanyDetails() {
 
     }
     else if (
-      !/^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/.test(
+      !EMAIL_PATTERN.test(
         company.email
       )
     ) {
+
       nextErrors.email =
-        "Please enter a valid email address";
+        "Enter a valid Email Address";
+
     }
     else {
 
@@ -560,13 +743,13 @@ function CompanyDetails() {
 
     }
     else if (
-      !/^[a-z][a-z0-9]*@(gmail|yahoo|pirnav)\.com$/.test(
+      !EMAIL_PATTERN.test(
         branchForm.email
       )
     ) {
 
       nextErrors.email =
-        "Email must be like abc123@gmail.com";
+        "Enter a valid Email Address";
 
     }
     else {
@@ -593,6 +776,15 @@ function CompanyDetails() {
   };
 
   const updateCompany = async () => {
+    if (companySaving) {
+      return;
+    }
+
+    if (!hasCompanyId(companyId)) {
+      toastError("Company ID is missing.");
+      return;
+    }
+
     if (!validateCompany()) {
       return;
     }
@@ -608,8 +800,6 @@ function CompanyDetails() {
         gstNumber: company.gst.trim(),
         tinNumber: company.tin.trim(),
         panNumber: company.pan.trim(),
-        branches: branches.length,
-        branchList: [],
       };
 
       await api.put(API_ENDPOINTS.company.update(companyId), payload);
@@ -617,8 +807,21 @@ function CompanyDetails() {
       closeModal();
       await fetchCompany(companyId);
     } catch (error) {
-      console.error("Update error:", error.response?.data || error.message);
-      toastError("Unable to update company details.");
+      console.error("Company update error:", error?.response?.data || error);
+
+      const status = error?.response?.status;
+
+      if (status === 400) {
+        toastError(error?.response?.data?.message || "Invalid company details.");
+      } else if (status === 404) {
+        toastError("Company details not found.");
+      } else if (status === 401) {
+        toastError("Session expired. Please login again.");
+      } else if (status === 403) {
+        toastError("You do not have permission to update company details.");
+      } else {
+        toastError("Unable to update company details.");
+      }
     } finally {
       setCompanySaving(false);
     }
@@ -656,6 +859,9 @@ function CompanyDetails() {
       toastSuccess(editingBranchId ? "Branch updated successfully." : "Branch added successfully.");
       closeModal();
       await fetchBranches();
+      if (hasCompanyId(companyId)) {
+        await fetchCompany(companyId);
+      }
     } catch (error) {
       console.error("Branch save error:", error.response?.data || error.message);
       toastError("Unable to save branch.");
@@ -692,6 +898,9 @@ function CompanyDetails() {
       setShowDeleteModal(false);
       closeBranchPopup();
       await fetchBranches();
+      if (hasCompanyId(companyId)) {
+        await fetchCompany(companyId);
+      }
     } catch (error) {
       console.error("Delete error:", error.response?.data || error.message);
       toastError("Unable to delete branch.");
@@ -710,7 +919,7 @@ function CompanyDetails() {
           <button
             className="company-header-edit app-button-secondary"
             type="button"
-            onClick={() => setModalType("company")}
+            onClick={handleEditDetails}
           >
             Edit Details
           </button>
