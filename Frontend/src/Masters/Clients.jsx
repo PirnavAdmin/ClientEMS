@@ -206,9 +206,9 @@ function Clients() {
 
       // ALLOW ONLY gmail/yahoo/pirnav
       if (
-        !/^[A-Za-z][A-Za-z0-9]*@(gmail|yahoo|pirnav)\.com$/.test(value)
+        !/^[A-Za-z][A-Za-z0-9._%+-]*@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/.test(value)
       ) {
-        return "Email must be like demo@gmail.com";
+        return "Enter a valid email address (e.g. demo@gmail.com)";
       }
 
       // NO SPECIAL CHARACTERS
@@ -480,7 +480,7 @@ function Clients() {
 
   return (
     <div className="clients-page">
-<div className="clients-header">
+      <div className="clients-header">
         <div className="clients-header-copy">
           <h2>Clients</h2>
           <p>Manage client relationships</p>
@@ -523,7 +523,7 @@ function Clients() {
                       aria-label={`Open actions for ${clientName}`}
                       aria-haspopup="menu"
                       aria-expanded={menuOpenIndex === index}
-                    onClick={() =>
+                      onClick={() =>
                         setMenuOpenIndex(menuOpenIndex === index ? null : index)
                       }
                     >
@@ -533,19 +533,19 @@ function Clients() {
                     {menuOpenIndex === index && (
                       <div className="menu-dropdown" role="menu">
                         <button
-                        className="menu-dropdown-item"
-                        type="button"
-                        role="menuitem"
-                        onClick={() => handleEdit(client)}
-                      >
+                          className="menu-dropdown-item"
+                          type="button"
+                          role="menuitem"
+                          onClick={() => handleEdit(client)}
+                        >
                           Edit
                         </button>
                         <button
-                        className="menu-dropdown-item menu-dropdown-item--danger"
-                        type="button"
-                        role="menuitem"
-                        onClick={() => handleDelete(client)}
-                      >
+                          className="menu-dropdown-item menu-dropdown-item--danger"
+                          type="button"
+                          role="menuitem"
+                          onClick={() => handleDelete(client)}
+                        >
                           Delete
                         </button>
                       </div>

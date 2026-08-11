@@ -32,7 +32,7 @@ import {
   isSuperAdmin,
 } from "../utils/authorization";
 import { ticketPermissionMatches } from "../TicketManagement/ticketConfig";
-import honeyIcon from "../assets/honeyicon.png";
+import honeyIcon from "../assets/honeywell.png";
 import "./Sidebar.css";
 
 const SIDEBAR_NAVIGATION = [
@@ -794,7 +794,7 @@ function Sidebar({ collapsed = false, isMobile = false, mobileOpen = false, onCl
         type="button"
         className="sidebar-status-retry"
         onClick={() => {
-          void refreshPermissions({ force: true }).catch(() => {});
+          void refreshPermissions({ force: true }).catch(() => { });
         }}
       >
         Retry
@@ -828,9 +828,8 @@ function Sidebar({ collapsed = false, isMobile = false, mobileOpen = false, onCl
       )}
 
       <aside
-        className={`sidebar ${isCompact ? "collapsed" : ""} ${isMobile ? "mobile-sidebar" : ""} ${
-          isMobile && mobileOpen ? "mobile-open" : ""
-        }`}
+        className={`sidebar ${isCompact ? "collapsed" : ""} ${isMobile ? "mobile-sidebar" : ""} ${isMobile && mobileOpen ? "mobile-open" : ""
+          }`}
       >
         <NavLink
           to={dashboardPath}
@@ -838,10 +837,11 @@ function Sidebar({ collapsed = false, isMobile = false, mobileOpen = false, onCl
           aria-label="Go to dashboard"
           onClick={handleLinkClick}
         >
-        <span className="sidebar-brand-icon-wrap" aria-hidden="true">
-          <img src={honeyIcon} alt="" className="sidebar-brand-icon" />
-        </span>
-        <span className="sidebar-brand-text">Honeywell</span>
+          <img
+            src={honeyIcon}
+            alt="Honeywell Logo"
+            className="sidebar-logo-img"
+          />
         </NavLink>
 
         <nav className="menu">

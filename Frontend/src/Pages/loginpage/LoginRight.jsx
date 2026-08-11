@@ -1,5 +1,5 @@
 import React from "react";
-import honeyLogo from "../../assets/honey.png";
+import honeyLogo from "../../assets/honeywell.png";
 
 function LoginRight() {
   return (
