@@ -24,15 +24,80 @@ namespace EmployeeManagementSystem.Services
 
         }
 
+        private static string? GetEnvValue(params string[] names)
+        {
+            foreach (var name in names)
+            {
+                var value = Environment.GetEnvironmentVariable(name);
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    return value.Trim();
+                }
+            }
+
+            return null;
+        }
+
         private EmailSettings GetEmailSettings()
 
         {
 
-            var settings = _context.EmailSettings.AsNoTracking().FirstOrDefault();
+            var settings = _context.EmailSettings.AsNoTracking().FirstOrDefault()
+                ?? new EmailSettings();
 
-            if (settings == null)
+            var senderEmail = GetEnvValue("SMTP_USERNAME", "SMTP_SENDER_EMAIL");
+            var senderPassword = GetEnvValue("SMTP_PASSWORD", "SMTP_SENDER_PASSWORD");
+            var smtpHost = GetEnvValue("SMTP_HOST");
+            var smtpPort = GetEnvValue("SMTP_PORT");
+            var enableSsl = GetEnvValue("SMTP_ENABLE_SSL", "SMTP_SSL", "SMTP_SECURITY");
+            var displayName = GetEnvValue("SMTP_DISPLAY_NAME");
 
+            if (!string.IsNullOrWhiteSpace(senderEmail))
+            {
+                settings.SenderEmail = senderEmail;
+            }
+
+            if (!string.IsNullOrWhiteSpace(senderPassword))
+            {
+                settings.SenderPassword = senderPassword;
+            }
+
+            if (!string.IsNullOrWhiteSpace(smtpHost))
+            {
+                settings.SmtpHost = smtpHost;
+            }
+
+            if (int.TryParse(smtpPort, out var parsedPort))
+            {
+                settings.SmtpPort = parsedPort;
+            }
+
+            if (!string.IsNullOrWhiteSpace(enableSsl))
+            {
+                settings.EnableSSL =
+                    enableSsl.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+                    enableSsl.Equals("1", StringComparison.OrdinalIgnoreCase) ||
+                    enableSsl.Contains("SSL", StringComparison.OrdinalIgnoreCase) ||
+                    enableSsl.Contains("TLS", StringComparison.OrdinalIgnoreCase);
+            }
+
+            if (!string.IsNullOrWhiteSpace(displayName))
+            {
+                settings.DisplayName = displayName;
+            }
+
+            if (string.IsNullOrWhiteSpace(settings.SenderEmail) ||
+                string.IsNullOrWhiteSpace(settings.SenderPassword) ||
+                string.IsNullOrWhiteSpace(settings.SmtpHost) ||
+                settings.SmtpPort <= 0)
+            {
                 throw new Exception("Email Settings not configured.");
+            }
+
+            if (string.IsNullOrWhiteSpace(settings.DisplayName))
+            {
+                settings.DisplayName = settings.SenderEmail;
+            }
 
             return settings;
 

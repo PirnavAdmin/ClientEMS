@@ -18,6 +18,8 @@ using System.Security.Claims;
 using QuestPDF.Infrastructure;
 using System.Text;
 
+LoadDotEnv();
+
 var builder = WebApplication.CreateBuilder(args);
 
 // ================= SERVICES =================
@@ -356,3 +358,51 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+static void LoadDotEnv()
+{
+    var searchDirectories = new[]
+    {
+        Directory.GetCurrentDirectory(),
+        AppContext.BaseDirectory,
+        Directory.GetParent(Directory.GetCurrentDirectory())?.FullName
+    };
+
+    var envPath = searchDirectories
+        .Where(path => !string.IsNullOrWhiteSpace(path))
+        .Select(path => Path.Combine(path!, ".env"))
+        .FirstOrDefault(File.Exists);
+
+    if (envPath == null)
+    {
+        return;
+    }
+
+    foreach (var line in File.ReadAllLines(envPath))
+    {
+        var trimmedLine = line.Trim();
+
+        if (string.IsNullOrWhiteSpace(trimmedLine) ||
+            trimmedLine.StartsWith("#", StringComparison.Ordinal))
+        {
+            continue;
+        }
+
+        var separatorIndex = trimmedLine.IndexOf('=');
+        if (separatorIndex <= 0)
+        {
+            continue;
+        }
+
+        var key = trimmedLine[..separatorIndex].Trim();
+        var value = trimmedLine[(separatorIndex + 1)..].Trim().Trim('"');
+
+        if (string.IsNullOrWhiteSpace(key) ||
+            Environment.GetEnvironmentVariable(key) != null)
+        {
+            continue;
+        }
+
+        Environment.SetEnvironmentVariable(key, value);
+    }
+}
