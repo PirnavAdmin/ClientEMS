@@ -1,9 +1,9 @@
 ﻿using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
+using MailKit.Security;
 using Microsoft.EntityFrameworkCore;
 using MimeKit;
-using System.Net;
 using System.Net.Mail;
 
 namespace EmployeeManagementSystem.Services
@@ -38,6 +38,96 @@ namespace EmployeeManagementSystem.Services
 
         }
 
+        private static SecureSocketOptions GetSecureSocketOptions(EmailSettings settings)
+        {
+            if (!settings.EnableSSL)
+            {
+                return SecureSocketOptions.None;
+            }
+
+            return settings.SmtpPort == 465
+                ? SecureSocketOptions.SslOnConnect
+                : SecureSocketOptions.StartTls;
+        }
+
+        private static MimeMessage ToMimeMessage(MailMessage message)
+        {
+            var mimeMessage = new MimeMessage();
+
+            if (message.From == null)
+            {
+                throw new InvalidOperationException("Sender email is required.");
+            }
+
+            mimeMessage.From.Add(new MailboxAddress(
+                message.From.DisplayName,
+                message.From.Address));
+
+            foreach (var address in message.To)
+            {
+                mimeMessage.To.Add(new MailboxAddress(address.DisplayName, address.Address));
+            }
+
+            foreach (var address in message.CC)
+            {
+                mimeMessage.Cc.Add(new MailboxAddress(address.DisplayName, address.Address));
+            }
+
+            foreach (var address in message.Bcc)
+            {
+                mimeMessage.Bcc.Add(new MailboxAddress(address.DisplayName, address.Address));
+            }
+
+            mimeMessage.Subject = message.Subject;
+
+            var bodyBuilder = new BodyBuilder();
+            if (message.IsBodyHtml)
+            {
+                bodyBuilder.HtmlBody = message.Body;
+            }
+            else
+            {
+                bodyBuilder.TextBody = message.Body;
+            }
+
+            foreach (var attachment in message.Attachments)
+            {
+                if (attachment.ContentStream.CanSeek)
+                {
+                    attachment.ContentStream.Position = 0;
+                }
+
+                bodyBuilder.Attachments.Add(
+                    attachment.Name,
+                    attachment.ContentStream,
+                    MimeKit.ContentType.Parse(attachment.ContentType.ToString()));
+            }
+
+            mimeMessage.Body = bodyBuilder.ToMessageBody();
+            return mimeMessage;
+        }
+
+        private static async Task SendMailMessageAsync(
+            EmailSettings settings,
+            MailMessage message)
+        {
+            using var smtp = new MailKit.Net.Smtp.SmtpClient();
+
+            smtp.Timeout = 60000;
+
+            await smtp.ConnectAsync(
+                settings.SmtpHost,
+                settings.SmtpPort,
+                GetSecureSocketOptions(settings));
+
+            await smtp.AuthenticateAsync(
+                settings.SenderEmail,
+                settings.SenderPassword);
+
+            await smtp.SendAsync(ToMimeMessage(message));
+            await smtp.DisconnectAsync(true);
+        }
+
         // ✅ Existing OTP Method (Keep Working)
 
         public async Task SendOtpAsync(string toEmail, string otp)
@@ -46,20 +136,6 @@ namespace EmployeeManagementSystem.Services
 
             try
             {
-                using var smtp = new SmtpClient(
-                    settings.SmtpHost,
-                    settings.SmtpPort);
-
-                smtp.EnableSsl = settings.EnableSSL;
-                smtp.UseDefaultCredentials = false;
-
-                smtp.Credentials = new NetworkCredential(
-                    settings.SenderEmail,
-                    settings.SenderPassword);
-
-                smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
-                smtp.Timeout = 30000;
-
                 using var message = new MailMessage();
 
                 message.From = new MailAddress(
@@ -80,17 +156,16 @@ Your OTP for resetting your EMS password is:
 This OTP is confidential. Please do not share it with anyone.
 
 Regards,
-Pirnav EMS Team";
+Honeywell EMS Team";
 
                 message.IsBodyHtml = false;
 
-                await smtp.SendMailAsync(message);
+                await SendMailMessageAsync(settings, message);
             }
-            catch (SmtpException ex)
+            catch (Exception ex)
             {
                 Console.WriteLine("SMTP ERROR");
                 Console.WriteLine($"Message: {ex.Message}");
-                Console.WriteLine($"Status Code: {ex.StatusCode}");
                 Console.WriteLine($"Inner: {ex.InnerException?.Message}");
 
                 throw;
@@ -111,49 +186,31 @@ Pirnav EMS Team";
 
             var settings = GetEmailSettings();
 
-            using (var smtp = new SmtpClient(settings.SmtpHost, settings.SmtpPort))
+            using var message = new MailMessage();
 
-            {
-
-                smtp.EnableSsl = settings.EnableSSL;
-
-                smtp.UseDefaultCredentials = false;
-
-                smtp.Credentials = new NetworkCredential(
-
-     settings.SenderEmail,
-
-     settings.SenderPassword);
-
-                smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
-
-                var message = new MailMessage();
-
-                message.From = new MailAddress(
+            message.From = new MailAddress(
 
     settings.SenderEmail,
 
     settings.DisplayName);
 
-                message.To.Add(toEmail);
+            message.To.Add(toEmail);
 
-                message.Subject = subject;
+            message.Subject = subject;
 
-                message.Body = body;
+            message.Body = body;
 
-                message.IsBodyHtml = false;
+            message.IsBodyHtml = false;
 
-                if (File.Exists(attachmentPath))
+            if (File.Exists(attachmentPath))
 
-                {
+            {
 
-                    message.Attachments.Add(new Attachment(attachmentPath));
-
-                }
-
-                await smtp.SendMailAsync(message);
+                message.Attachments.Add(new Attachment(attachmentPath));
 
             }
+
+            await SendMailMessageAsync(settings, message);
 
         }
 
@@ -163,17 +220,6 @@ Pirnav EMS Team";
 
             try
             {
-                using var smtp = new SmtpClient(settings.SmtpHost, settings.SmtpPort);
-
-                smtp.EnableSsl = settings.EnableSSL;
-                smtp.UseDefaultCredentials = false;
-                smtp.Credentials = new NetworkCredential(
-                    settings.SenderEmail,
-                    settings.SenderPassword);
-
-                smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
-                smtp.Timeout = 60000; // 60 seconds
-
                 using var message = new MailMessage();
 
                 message.From = new MailAddress(
@@ -187,7 +233,7 @@ Pirnav EMS Team";
                 message.Body = $@"
 Hello {employeeName},
 
-Your account has been created successfully in Pirnav EMS.
+Your account has been created successfully in Honeywell EMS.
 
 Login URL:
 https://hrms.honeywellitsolutions.com/register
@@ -195,69 +241,22 @@ https://hrms.honeywellitsolutions.com/register
 Please register and verify your account before logging in.
 
 Regards,
-Pirnav HR Team";
+Honeywell HR Team";
 
                 message.IsBodyHtml = false;
 
-                await smtp.SendMailAsync(message);
+                await SendMailMessageAsync(settings, message);
             }
-            catch (SmtpException ex)
+            catch (Exception ex)
             {
                 Console.WriteLine("SMTP ERROR");
                 Console.WriteLine($"Message: {ex.Message}");
-                Console.WriteLine($"Status Code: {ex.StatusCode}");
                 Console.WriteLine($"Inner Exception: {ex.InnerException?.Message}");
 
                 throw new Exception($"Failed to send email: {ex.Message}");
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"General Error: {ex.Message}");
-                throw;
-            }
         }
 
-        //    public async Task SendEmailWithAttachmentAsync(
-        //string to,
-        //string subject,
-        //string body,
-        //string attachmentPath)
-        //    {
-        //        var email = new MimeMessage();
-
-        //        email.From.Add(MailboxAddress.Parse(_configuration["EmailSettings:From"]));
-
-        //        email.To.Add(MailboxAddress.Parse(to));
-
-        //        email.Subject = subject;
-
-        //        var builder = new BodyBuilder
-        //        {
-        //            HtmlBody = body
-        //        };
-
-        //        if (File.Exists(attachmentPath))
-        //        {
-        //            builder.Attachments.Add(attachmentPath);
-        //        }
-
-        //        email.Body = builder.ToMessageBody();
-
-        //        using var smtp = new MailKit.Net.Smtp.SmtpClient();
-
-        //        await smtp.ConnectAsync(
-        //            _configuration["EmailSettings:SmtpServer"],
-        //            int.Parse(_configuration["EmailSettings:Port"]),
-        //            MailKit.Security.SecureSocketOptions.StartTls);
-
-        //        await smtp.AuthenticateAsync(
-        //            _configuration["EmailSettings:Username"],
-        //            _configuration["EmailSettings:Password"]);
-
-        //        await smtp.SendAsync(email);
-
-        //        await smtp.DisconnectAsync(true);
-        //    }
         public async Task SendEmailAsync(
 
     string toEmail,
@@ -270,39 +269,23 @@ Pirnav HR Team";
 
             var settings = GetEmailSettings();
 
-            using (var smtp = new SmtpClient(settings.SmtpHost, settings.SmtpPort))
+            using var message = new MailMessage();
 
-            {
-
-                smtp.EnableSsl = settings.EnableSSL;
-
-                smtp.UseDefaultCredentials = false;
-
-                smtp.Credentials = new NetworkCredential(
-
-     settings.SenderEmail,
-
-     settings.SenderPassword);
-
-                var message = new MailMessage();
-
-                message.From = new MailAddress(
+            message.From = new MailAddress(
 
     settings.SenderEmail,
 
     settings.DisplayName);
 
-                message.To.Add(toEmail);
+            message.To.Add(toEmail);
 
-                message.Subject = subject;
+            message.Subject = subject;
 
-                message.Body = body;
+            message.Body = body;
 
-                message.IsBodyHtml = true;
+            message.IsBodyHtml = true;
 
-                await smtp.SendMailAsync(message);
-
-            }
+            await SendMailMessageAsync(settings, message);
 
         }
 
@@ -314,17 +297,6 @@ Pirnav HR Team";
     string attachmentPath)
         {
             var settings = GetEmailSettings();
-
-            using var smtp = new SmtpClient(settings.SmtpHost, settings.SmtpPort);
-
-            smtp.EnableSsl = settings.EnableSSL;
-            smtp.UseDefaultCredentials = false;
-            smtp.Credentials = new NetworkCredential(
-                settings.SenderEmail,
-                settings.SenderPassword);
-
-            smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
-            smtp.Timeout = 60000;
 
             using var message = new MailMessage();
 
@@ -359,7 +331,7 @@ For any clarification, please contact the HR Department.
 <p>
 Regards,<br/>
 <b>HR Team</b><br/>
-Pirnav Software Solutions Pvt. Ltd.
+Honeywell IT Solutions Pvt. Ltd.
 </p>
 
 <hr/>
@@ -376,7 +348,7 @@ This is a system generated email. Please do not reply.
 
             message.Attachments.Add(new Attachment(attachmentPath));
 
-            await smtp.SendMailAsync(message);
+            await SendMailMessageAsync(settings, message);
         }
         public async Task SendLocationMismatchEmail(
 
@@ -404,35 +376,21 @@ This is a system generated email. Please do not reply.
 
             var settings = GetEmailSettings();
 
-            using (var smtp = new SmtpClient(settings.SmtpHost, settings.SmtpPort))
+            using var message = new MailMessage();
 
-            {
-
-                smtp.EnableSsl = settings.EnableSSL;
-
-                smtp.UseDefaultCredentials = false;
-
-                smtp.Credentials = new NetworkCredential(
-
-    settings.SenderEmail,
-
-    settings.SenderPassword);
-
-                var message = new MailMessage();
-
-                message.From = new MailAddress(
+            message.From = new MailAddress(
 
     settings.SenderEmail,
 
     settings.DisplayName);
 
-                message.To.Add(adminEmail);
+            message.To.Add(adminEmail);
 
-                message.Subject =
+            message.Subject =
 
      $"Location Mismatch Alert | {employeeId} - {employeeName}";
 
-                message.Body =
+            message.Body =
 
 $@"Employee Location Change Alert
  
@@ -488,9 +446,7 @@ Reason Entered By Employee:
  
 Generated By EMS Attendance System";
 
-                await smtp.SendMailAsync(message);
-
-            }
+            await SendMailMessageAsync(settings, message);
 
         }
 
