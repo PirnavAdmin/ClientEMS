@@ -1331,9 +1331,9 @@ input[type="number"].settings-input::-webkit-inner-spin-button,
 
     padding:12px 16px;
 
-    background:#f6fbfc;
+    background: var(--card-bg);
 
-    border:1px solid #dceff2;
+    border:1px solid var(--border-color);
 
     border-radius:10px;
 
@@ -1341,11 +1341,36 @@ input[type="number"].settings-input::-webkit-inner-spin-button,
 
     font-weight:600;
 
+    color: var(--text-primary);
+
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+
+}
+
+.settings-group-header span:first-child {
+
+    color: var(--text-primary);
+
+}
+
+.settings-group-header span:last-child {
+
+    color: var(--text-secondary);
+
 }
 
 .settings-group-header:hover{
 
-    background:#eef8fa;
+    background: var(--card-hover);
+
+    border-color: var(--border-strong);
+
+}
+
+.settings-group-header:focus-visible,
+.settings-group-header:active {
+
+    border-color: var(--theme-primary);
 
 }
 

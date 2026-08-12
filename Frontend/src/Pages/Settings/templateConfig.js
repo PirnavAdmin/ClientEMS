@@ -1,7 +1,9 @@
 import { API_ENDPOINTS } from "../../api/endpoints";
 
+
 const text = (name, label, options = {}) => ({ name, label, type: "text", ...options });
 const file = (name, label, options = {}) => ({ name, label, type: "file", ...options });
+const select = (name, label, options = {}) => ({name, label, type: "select", ...options });
 
 export const templateModulesConfig = {
   templates: {
@@ -15,22 +17,34 @@ export const templateModulesConfig = {
       delete: API_ENDPOINTS.template.delete,
       contentType: "multipart/form-data",
     },
-    idKey: "id",
+   idKey: "templateId",
     columns: [
-      { key: "templateName", label: "Template Name" },
-      { key: "code", label: "Code" },
-      { key: "category", label: "Category" },
-      { key: "version", label: "Version" },
-      { key: "company", label: "Company" },
-    ],
-    formFields: [
-      text("templateName", "Template Name", { required: true }),
-      text("code", "Code", { required: true }),
-      text("category", "Category", { required: true }),
-      text("version", "Version"),
-      text("company", "Company"),
-      file("file", "Template File", { required: true }),
-    ],
+  { key: "templateName", label: "Template Name" },
+  { key: "moduleName", label: "Module" },
+  { key: "version", label: "Version" },
+],
+
+formFields: [
+  text("templateName", "Template Name", { required: true }),
+
+  select("moduleId", "Module", {
+      required: true,
+      options: []
+  }),
+
+select("version", "Version", {
+    required: true,
+    options: [
+        { value: "V1", label: "V1" },
+        { value: "V2", label: "V2" },
+        { value: "V3", label: "V3" },
+        { value: "V4", label: "V4" }
+    ]
+}),
+
+  file("file", "Template File", { required: true }),
+],
+
     uploadSettings: {
       fileField: "file",
       accept: ".pdf,.doc,.docx,.xlsx,.png,.jpg,.jpeg",
@@ -38,14 +52,21 @@ export const templateModulesConfig = {
     },
     searchFields: ["templateName", "code", "category", "version", "company"],
     workflowButtons: [
-      {
-        key: "download",
-        label: "Download",
-        method: "download",
-        endpoint: API_ENDPOINTS.template.download,
-        permission: "download",
-      },
-    ],
+  {
+    key: "download",
+    label: "Download",
+    method: "download",
+    endpoint: API_ENDPOINTS.template.download,
+    permission: "download",
+  },
+  {
+    key: "setDefault",
+    label: "Set Default",
+    method: "put",
+    endpoint: API_ENDPOINTS.template.setDefault,
+    permission: "edit",
+  },
+],
   },
 };
 

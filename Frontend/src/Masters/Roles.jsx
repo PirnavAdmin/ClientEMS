@@ -12,10 +12,10 @@ import {
   normalizeWhitespace,
   validateRoleName,
 } from "../utils/validation";
- 
+
 const normalizeRoleStatus = (value) =>
   String(value || "").trim().toLowerCase() === "inactive" ? "Inactive" : "Active";
- 
+
 function Roles() {
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,29 +27,29 @@ function Roles() {
   const [roleEmployees, setRoleEmployees] = useState([]);
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [employeesLoading, setEmployeesLoading] = useState(false);
- 
+
   const [isEdit, setIsEdit] = useState(false);
   const [selectedRoleId, setSelectedRoleId] = useState(null);
   const [showDeletePopup, setShowDeletePopup] = useState(false);
   const [deleteRoleId, setDeleteRoleId] = useState(null);
- 
+
   const [rolesForm, setRolesForm] = useState({
     roleName: "",
     status: "Active"
   });
- 
+
   const navigate = useNavigate();
- 
+
   useEffect(() => {
     fetchRoles();
   }, []);
- 
+
   const fetchRoles = async () => {
     setLoading(true);
- 
+
     try {
       const res = await api.get(API_ENDPOINTS.masters.roles.list);
- 
+
       const formattedData = sortByNewestIdFirst(
         extractCollection(res.data).map((role) => ({
           roleId: role.id ?? role.roleId ?? role.role_Id,
@@ -59,7 +59,7 @@ function Roles() {
         })),
         (role) => role.roleId
       );
- 
+
       setRoles(formattedData);
     } catch (error) {
       console.error(error);
@@ -69,12 +69,12 @@ function Roles() {
       setLoading(false);
     }
   };
- 
+
   const handleRolesChange = (e) => {
     const { name, value } = e.target;
- 
+
     let nextValue = value;
- 
+
     if (name === "roleName") {
       // allow only letters and single space
       nextValue = value
@@ -82,18 +82,18 @@ function Roles() {
         .replace(/\s+/g, " ") // only one space
         .replace(/^ /, ""); // no starting space
     }
- 
+
     if (name === "status") {
       nextValue = normalizeRoleStatus(value);
     }
- 
+
     const nextForm = {
       ...rolesForm,
       [name]: nextValue,
     };
- 
+
     setRolesForm(nextForm);
- 
+
     setErrors((prev) => ({
       ...prev,
       [name]:
@@ -104,44 +104,44 @@ function Roles() {
             : "Status is required",
     }));
   };
- 
+
   const validateRoleForm = () => {
     const trimmedRoleName = normalizeWhitespace(rolesForm.roleName);
     const normalizedStatus = normalizeRoleStatus(rolesForm.status);
- 
+
     const nextErrors = {};
- 
+
     const roleNameError = validateRoleName(trimmedRoleName);
- 
+
     if (roleNameError) {
       nextErrors.roleName = roleNameError;
     }
- 
+
     if (!normalizedStatus) {
       nextErrors.status = "Status is required";
     }
- 
+
     setErrors(nextErrors);
- 
+
     setRolesForm((prev) => ({
       ...prev,
       roleName: trimmedRoleName,
       status: normalizedStatus,
     }));
- 
+
     return Object.keys(nextErrors).length === 0;
   };
- 
+
   const handleRolesSubmit = async () => {
     if (!validateRoleForm()) return;
- 
+
     const payload = {
       name: rolesForm.roleName.trim(),
       isActive: normalizeRoleStatus(rolesForm.status) === "Active",
     };
- 
+
     setSaving(true);
- 
+
     try {
       if (isEdit) {
         await api.put(
@@ -153,7 +153,7 @@ function Roles() {
             }
           }
         );
- 
+
         toastSuccess("Role updated successfully");
       } else {
         await api.post(API_ENDPOINTS.masters.roles.list, payload, {
@@ -161,10 +161,10 @@ function Roles() {
             "Content-Type": "application/json",
           }
         });
- 
+
         toastSuccess("Role added successfully");
       }
- 
+
       resetForm();
       fetchRoles();
     } catch (error) {
@@ -174,18 +174,18 @@ function Roles() {
       setSaving(false);
     }
   };
- 
+
   const handleDelete = async (id) => {
     try {
       await api.delete(API_ENDPOINTS.masters.roles.byId(id));
- 
+
       toastSuccess("Role deleted successfully");
       fetchRoles();
     } catch (error) {
       console.error(error);
- 
+
       const msg = error.response?.data || "";
- 
+
       if (msg.includes("assigned to users")) {
         toastError("This role is assigned to users");
       } else {
@@ -193,16 +193,16 @@ function Roles() {
       }
     }
   };
- 
+
   const handleEditClick = (role) => {
     setIsEdit(true);
     setSelectedRoleId(role.roleId);
- 
+
     setRolesForm({
       roleName: role.roleName,
       status: normalizeRoleStatus(role.status),
     });
- 
+
     setRolesShowModal(true);
   };
 
@@ -273,7 +273,7 @@ function Roles() {
     return [employee.employeeId, employee.employeeName, employee.role, employee.status]
       .some((value) => String(value || "").toLowerCase().includes(query));
   });
- 
+
   const resetForm = () => {
     setRolesForm({ roleName: "", status: "Active" });
     setErrors({});
@@ -281,7 +281,7 @@ function Roles() {
     setSelectedRoleId(null);
     setRolesShowModal(false);
   };
- 
+
   if (loading) {
     return (
       <div style={{ padding: "20px" }}>
@@ -289,14 +289,14 @@ function Roles() {
       </div>
     );
   }
- 
+
   return (
     <div className="roles-page-container">
-<div className="roles-header-bar">
+      <div className="roles-header-bar">
         <div>
           <h2>Roles & Permissions</h2>
         </div>
- 
+
         <button
           className="roles-add-btn"
           onClick={() => {
@@ -310,7 +310,7 @@ function Roles() {
           + Add Role
         </button>
       </div>
- 
+
       <div
         className="roles-table-wrap"
         style={{
@@ -344,7 +344,7 @@ function Roles() {
               >
                 ROLE
               </th>
- 
+
               <th
                 style={{
                   padding: "12px 16px",
@@ -356,7 +356,7 @@ function Roles() {
               >
                 USERS
               </th>
- 
+
               <th
                 style={{
                   padding: "12px 16px",
@@ -368,7 +368,7 @@ function Roles() {
               >
                 STATUS
               </th>
- 
+
               <th
                 style={{
                   padding: "12px 16px",
@@ -382,7 +382,7 @@ function Roles() {
               </th>
             </tr>
           </thead>
- 
+
           <tbody>
             {roles.map((r, i) => (
               <tr
@@ -422,7 +422,7 @@ function Roles() {
                     >
                       <FaShieldAlt />
                     </div>
- 
+
                     <span
                       style={{
                         fontSize: "15px",
@@ -434,7 +434,7 @@ function Roles() {
                     </span>
                   </div>
                 </td>
- 
+
                 <td
                   style={{
                     textAlign: "center",
@@ -451,7 +451,7 @@ function Roles() {
                     {r.users}
                   </button>
                 </td>
- 
+
                 <td
                   style={{
                     textAlign: "center",
@@ -462,7 +462,7 @@ function Roles() {
                 >
                   {r.status}
                 </td>
- 
+
                 <td
                   style={{
                     textAlign: "center",
@@ -484,7 +484,7 @@ function Roles() {
                     >
                       Edit
                     </button>
- 
+
                     <button
                       type="button"
                       onClick={() => {
@@ -492,7 +492,7 @@ function Roles() {
                           toastWarning("Role already assigned to users");
                           return;
                         }
- 
+
                         setDeleteRoleId(r.roleId);
                         setShowDeletePopup(true);
                       }}
@@ -508,12 +508,12 @@ function Roles() {
           </tbody>
         </table>
       </div>
- 
+
       {rolesShowModal && (
         <div className="roles-modal-overlay">
           <div className="roles-modal-container">
             <h3>{isEdit ? "Edit Role" : "Add Role"}</h3>
- 
+
             <div className="roles-field-group">
               <label htmlFor="role-name-input">Role Name</label>
               <input
@@ -529,7 +529,7 @@ function Roles() {
               />
               {errors.roleName && <p className="roles-error">{errors.roleName}</p>}
             </div>
- 
+
             <div className="roles-field-group">
               <label htmlFor="role-status-select">Status</label>
               <select
@@ -545,7 +545,7 @@ function Roles() {
               </select>
               {errors.status && <p className="roles-error">{errors.status}</p>}
             </div>
- 
+
             <div className="roles-modal-actions">
               <button className="roles-modal-btn roles-modal-btn--secondary" onClick={resetForm}>
                 Cancel
@@ -609,11 +609,10 @@ function Roles() {
                         <td>{employee.role || employeeModalRole?.roleName || "-"}</td>
                         <td>
                           <span
-                            className={`roles-status-badge ${
-                              String(employee.status || "").toLowerCase() === "inactive"
+                            className={`roles-status-badge ${String(employee.status || "").toLowerCase() === "inactive"
                                 ? "roles-status-badge--inactive"
                                 : "roles-status-badge--active"
-                            }`}
+                              }`}
                           >
                             {employee.status || "Active"}
                           </span>
@@ -634,52 +633,34 @@ function Roles() {
       {showDeletePopup && (
         <div className="roles-modal-overlay">
           <div className="roles-delete-modal">
-            <h2
-              style={{
-                marginBottom: "15px",
-                color: "var(--text-strong)",
-                fontSize: "18px",
-                fontWeight: "700",
-              }}
-            >
+            <h2 className="roles-delete-modal-title">
               Confirm Delete
             </h2>
- 
-            <p
-              style={{
-                color: "var(--text-body)",
-                fontSize: "16px",
-                marginBottom: "20px",
-                fontWeight: "500",
-              }}
-            >
+
+            <p className="roles-delete-modal-message">
               Are you sure you want to delete this role?
             </p>
- 
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: "14px",
-              }}
-            >
+
+            <div className="roles-delete-modal-actions">
               <button
+                type="button"
                 onClick={() => {
                   setShowDeletePopup(false);
                   setDeleteRoleId(null);
                 }}
-                className="roles-modal-btn roles-modal-btn--secondary"
+                className="roles-delete-btn roles-delete-btn--cancel"
               >
                 Cancel
               </button>
- 
+
               <button
+                type="button"
                 onClick={() => {
                   handleDelete(deleteRoleId);
                   setShowDeletePopup(false);
                   setDeleteRoleId(null);
                 }}
-                className="roles-modal-btn roles-modal-btn--danger"
+                className="roles-delete-btn roles-delete-btn--confirm"
               >
                 Yes, Delete
               </button>
@@ -690,8 +671,8 @@ function Roles() {
     </div>
   );
 }
- 
+
 export default Roles;
- 
- 
- 
+
+
+

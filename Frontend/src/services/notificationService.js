@@ -2,7 +2,6 @@ import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
 import { extractCollection } from "../utils/collections";
 import { getAuthenticatedUserSnapshot } from "../utils/authStorage";
-import { hasEmployeeIdClaim } from "../utils/authorization";
 
 const normalizeNotificationRole = (value) => {
   const normalized = String(value ?? "")
@@ -56,14 +55,14 @@ const NOTIFICATION_CONFIGS = {
   },
 };
 
-const resolveNotificationConfig = (role, hasEmployeeId = false) => {
+const resolveNotificationConfig = (role) => {
   const normalizedRole = normalizeNotificationRole(role);
 
   if (normalizedRole === "superadmin") {
     return NOTIFICATION_CONFIGS.superadmin;
   }
 
-  if (normalizedRole === "admin" || !hasEmployeeId) {
+  if (normalizedRole === "admin") {
     return NOTIFICATION_CONFIGS.admin;
   }
 
@@ -120,9 +119,7 @@ const logNotificationEvent = ({
 
 export const getNotificationContext = (role, snapshot = getAuthenticatedUserSnapshot()) => {
   const resolvedRole = normalizeNotificationRole(role || snapshot.role || snapshot.roleName || "");
-  const hasEmployeeId =
-    Boolean(String(snapshot?.employeeId ?? "").trim()) || hasEmployeeIdClaim();
-  const config = resolveNotificationConfig(resolvedRole, hasEmployeeId);
+  const config = resolveNotificationConfig(resolvedRole);
 
   return {
     snapshot,

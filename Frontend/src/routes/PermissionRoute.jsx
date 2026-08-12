@@ -1,59 +1,64 @@
-import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { PageSkeleton } from "../components/Skeletons";
+import { ticketPermissionMatches } from "../TicketManagement/ticketConfig";
 import { usePermissionScope } from "../context/usePermissionScope";
-import {
-  hasEmployeeIdClaim,
-  isEmployeeOnlyModule,
-  isSuperAdmin,
-} from "../utils/authorization";
+import { isSuperAdmin, modulePermissionMatches } from "../utils/authorization";
 
 const PermissionRoute = ({ children, module }) => {
+  const { loadingPermissions, allowedModules = [], permissionScope } = usePermissionScope();
   const location = useLocation();
-  const { loadingPermissions, canAccessModule, errorStatus, role } = usePermissionScope();
-  const requestedModule = String(module ?? "").trim();
-  const hasPermission = requestedModule ? canAccessModule(requestedModule) : true;
-  const isSuperAdminUser = isSuperAdmin(role) || isSuperAdmin();
-  const isStandaloneAddEmployeeRoute = /^\/add-employee\/?$/.test(location.pathname);
-  const isEmployeeSelfServiceRoute =
-    isEmployeeOnlyModule(requestedModule) || isStandaloneAddEmployeeRoute;
-  const isEmployeeIdMissing = !hasEmployeeIdClaim();
-  const unauthorizedMessage = "You are not authorized to access this page.";
+  const currentPath = location.pathname;
+  const currentRole = String(permissionScope || "").trim().toLowerCase();
 
-  console.log("Current Route:", location.pathname);
-  console.log("Permission Check:", hasPermission);
-
-  if (isEmployeeIdMissing && isEmployeeSelfServiceRoute) {
-    return (
-      <Navigate
-        to="/403"
-        replace
-        state={{ message: unauthorizedMessage }}
-      />
-    );
-  }
-
-  if (isSuperAdminUser) {
+  if (isSuperAdmin()) {
     return children;
   }
 
   if (loadingPermissions) {
+    return null;
+  }
+
+  if (currentRole === "admin") {
+    console.log("[Admin Permission] Checking route permission:", {
+      currentRole,
+      currentPath,
+      allowedModules,
+    });
+  }
+
+  const hasAccess = allowedModules.some((permission) => {
+    const canAccess = permission?.canAccess ?? permission?.CanAccess ?? false;
+
+    if (canAccess !== true) {
+      return false;
+    }
+
+    const normalizedModuleName = String(permission.moduleName || permission.ModuleName || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+
+    if (normalizedModuleName === "all") {
+      return true;
+    }
+
     return (
-      <div className="app-route-skeleton" style={{ padding: "24px" }}>
-        <PageSkeleton variant="dashboard" />
-      </div>
+      modulePermissionMatches(permission.moduleName || permission.ModuleName || "", module) ||
+      ticketPermissionMatches(permission.moduleName || permission.ModuleName || "", module)
     );
-  }
+  });
 
-  if (errorStatus === 403) {
-    return <Navigate to="/403" replace />;
-  }
+  if (hasAccess) {
+    if (currentRole === "admin") {
+      console.log("[Admin Permission] Access granted:", currentPath);
+    }
 
-  if (!requestedModule) {
     return children;
   }
 
-  return hasPermission ? children : <Navigate to="/403" replace />;
+  if (currentRole === "admin") {
+    console.log("[Admin Permission] Access denied:", currentPath);
+  }
+
+  return <Navigate to="/unauthorized" replace />;
 };
 
 export default PermissionRoute;

@@ -546,4 +546,137 @@
   }
 }
 
+/* =========================================================
+   ROLE DELETE CONFIRMATION POPUP
+   Only affects the Roles delete confirmation modal
+   ========================================================= */
 
+.roles-delete-modal {
+  width: min(550px, calc(100vw - 32px));
+  min-height: 310px;
+  box-sizing: border-box;
+  padding: 42px 40px 40px;
+  border-radius: 20px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-page);
+  box-shadow: var(--shadow-lg);
+
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+
+  animation: rolesDeleteModalIn 0.2s ease-out;
+}
+
+.roles-delete-modal-title {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 28px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.roles-delete-modal-message {
+  margin: 25px 0 0;
+  color: var(--text-body);
+  font-size: 20px;
+  line-height: 0.2;
+  font-weight: 500;
+}
+
+.roles-delete-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 16px;
+  margin-top: 54px;
+}
+
+.roles-delete-btn {
+  min-width: 100px;
+  height: 48px;
+  padding: 0 16px;
+  border-radius: 13px;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  cursor: pointer;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.roles-delete-btn--cancel {
+  background: var(--surface-info-soft);
+  border: 1px solid var(--border-soft);
+  color: var(--theme-primary);
+}
+
+.roles-delete-btn--cancel:hover {
+  background: var(--bg-soft);
+  border-color: var(--theme-primary);
+  transform: translateY(-1px);
+}
+
+.roles-delete-btn--confirm {
+  background: var(--surface-danger-soft);
+  border: 1px solid var(--theme-danger);
+  color: var(--theme-danger-strong);
+}
+
+.roles-delete-btn--confirm:hover {
+  background: var(--surface-danger-soft);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.12);
+}
+
+@keyframes rolesDeleteModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Mobile only for this delete popup */
+@media (max-width: 576px) {
+  .roles-delete-modal {
+    width: calc(100vw - 24px);
+    min-height: auto;
+    padding: 30px 24px;
+    border-radius: 20px;
+  }
+
+  .roles-delete-modal-title {
+    font-size: 24px;
+  }
+
+  .roles-delete-modal-message {
+    margin-top: 30px;
+    font-size: 17px;
+  }
+
+  .roles-delete-modal-actions {
+    margin-top: 36px;
+    gap: 10px;
+  }
+
+  .roles-delete-btn {
+    min-width: 0;
+    flex: 1;
+    height: 52px;
+    font-size: 15px;
+  }
+}

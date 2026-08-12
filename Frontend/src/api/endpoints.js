@@ -1,6 +1,5 @@
 import { BASE_URL, SERVER_URL } from "./config";
-import { normalizeLoginRole } from "../utils/authorization";
- 
+
 const normalizePath = (path) =>
   String(path)
     .replace(/\\/g, "/")
@@ -28,66 +27,13 @@ const isUnsafeLocalPath = (value) => {
 
   return false;
 };
-
-const normalizeEndpointValue = (value, fallback) => {
-  const normalized = String(value ?? "").trim();
-
-  if (!normalized) {
-    return fallback;
-  }
-
-  return normalized.startsWith("/") ? normalized : `/${normalized}`;
-};
-
-const resolveCommonLoginEndpoint = () =>
-  normalizeEndpointValue(
-    import.meta.env.VITE_COMMON_LOGIN_ENDPOINT ||
-      import.meta.env.VITE_AUTH_LOGIN_ENDPOINT ||
-      import.meta.env.VITE_LOGIN_ENDPOINT ||
-      "/login",
-    "/login"
-  );
-
-const resolveAuthLoginEndpoint = (role = "admin") => {
-  const normalizedRole = normalizeLoginRole(role, "admin");
-
-  if (normalizedRole === "common") {
-    return resolveCommonLoginEndpoint();
-  }
-
-  if (normalizedRole === "user") {
-    return normalizeEndpointValue(
-      import.meta.env.VITE_USER_LOGIN_ENDPOINT ||
-        import.meta.env.VITE_EMPLOYEE_LOGIN_ENDPOINT ||
-        "/User/login",
-      "/User/login"
-    );
-  }
-
-  if (normalizedRole === "superadmin") {
-    return normalizeEndpointValue(
-      import.meta.env.VITE_SUPER_ADMIN_LOGIN_ENDPOINT ||
-        "/SuperAdmin/login",
-      "/SuperAdmin/login"
-    );
-  }
-
-  return normalizeEndpointValue(
-    import.meta.env.VITE_ADMIN_LOGIN_ENDPOINT ||
-      import.meta.env.VITE_AUTH_LOGIN_ENDPOINT ||
-      import.meta.env.VITE_LOGIN_ENDPOINT ||
-      "/Admin/login",
-    "/Admin/login"
-  );
-};
-
-const AUTH_LOGIN_ENDPOINT = resolveAuthLoginEndpoint("common");
 export const API = {
   // ================= AUTH =================
   AUTH: {
-    LOGIN: AUTH_LOGIN_ENDPOINT,
-    LOGIN_BY_ROLE: resolveAuthLoginEndpoint,
-    REGISTER: "/User/register",
+    SUPER_ADMIN_LOGIN: "/SuperAdmin/login",
+    ADMIN_LOGIN: "/Admin/login",
+    USER_LOGIN: "/user/login",
+    REGISTER: "/user/register",
     ADMIN: {
       FORGOT_PASSWORD: "/Admin/forgot-password",
       VERIFY_OTP: "/Admin/verify-otp",
@@ -101,7 +47,7 @@ export const API = {
       CHANGE_PASSWORD: "/User/change-password",
     },
   },
- 
+
   // ================= DASHBOARD =================
   DASHBOARD: {
     SUPER_ADMIN: "/SuperAdmin/dashboard",
@@ -111,9 +57,8 @@ export const API = {
 
   // ================= SUPER ADMIN =================
   SUPER_ADMIN: {
-    LOGIN: resolveAuthLoginEndpoint("superadmin"),
+    LOGIN: "/SuperAdmin/login",
     DASHBOARD: "/SuperAdmin/dashboard",
-    PERMISSIONS: (adminId) => `/SuperAdmin/permissions/${adminId}`,
   },
 
   // ================= ADMIN MANAGEMENT =================
@@ -130,13 +75,6 @@ export const API = {
     ALLOWED_MODULES: "/AdminPermission/allowed-modules",
   },
 
-  // ================= ROLE PERMISSIONS =================
-  ROLE_PERMISSION: {
-    GET: (roleName) => `/RolePermission/${encodeURIComponent(String(roleName ?? "").trim())}`,
-    SAVE: "/RolePermission/save",
-    ALLOWED_MODULES: "/RolePermission/allowed-modules",
-  },
-
   // ================= ADMIN SUBSCRIPTIONS =================
   ADMIN_SUBSCRIPTION: {
     CREATE: "/AdminSubscription",
@@ -145,15 +83,15 @@ export const API = {
     UPDATE: (adminId) => `/AdminSubscription/${adminId}`,
     USAGE: (adminId) => `/AdminSubscription/${adminId}/usage`,
   },
- 
+
   // ================= ATTENDANCE =================
   ATTENDANCE: {
     CHECKIN: "/Attendance/checkin",
     CHECKOUT: "/Attendance/checkout",
- 
+
     START_BREAK: "/Attendance/start-break",
     END_BREAK: "/Attendance/end-break",
- 
+
     WEEKLY: "/Attendance/weekly",
     PREVIOUS_WEEK: "/Attendance/previous-week",
     CURRENT_MONTH: "/Attendance/current-month",
@@ -172,11 +110,11 @@ export const API = {
     RUN_ABSENT: "/Attendance/run/absent-check",
     RUN_MISSING: "/Attendance/run/missing-checkout",
     UPLOAD_MONTHLY: "/Attendance/admin/upload-monthly",
- 
+
     WORKING_HOURS: (employeeId) =>
       `/Attendance/working-hours/${employeeId}`,
   },
- 
+
   // ================= ADMIN NOTIFICATIONS =================
   ADMIN_NOTIFICATION: {
     LIST: "/admin-notifications",
@@ -184,14 +122,14 @@ export const API = {
     READ: (id) => `/admin-notifications/read/${id}`,
     READ_ALL: "/admin-notifications/read-all",
   },
- 
+
   // ================= USER NOTIFICATIONS =================
   USER_NOTIFICATION: {
     LIST: "/user-notifications",
     READ: (id) => `/user-notifications/${id}/read`,
     MARK_ALL: "/user-notifications/mark-all",
   },
- 
+
   // ================= ASSETS =================
   ASSETS: {
     LIST: "/Assets",
@@ -200,7 +138,7 @@ export const API = {
     UPDATE: (id) => `/Assets/${id}`,
     DELETE: (id) => `/Assets/${id}`,
   },
- 
+
   // ================= BRANCHES =================
   BRANCHES: {
     LIST: "/Branches",
@@ -208,7 +146,7 @@ export const API = {
     UPDATE: (id) => `/Branches/${id}`,
     DELETE: (id) => `/Branches/${id}`,
   },
- 
+
   // ================= CLIENTS =================
   CLIENTS: {
     LIST: "/Clients",
@@ -218,7 +156,7 @@ export const API = {
     UPDATE: (name) => `/Clients/${name}`,
     DELETE: (name) => `/Clients/${name}`,
   },
- 
+
   // ================= DEPARTMENTS =================
   DEPARTMENTS: {
     LIST: "/Departments",
@@ -227,7 +165,7 @@ export const API = {
     UPDATE: (id) => `/Departments/${id}`,
     DELETE: (id) => `/Departments/${id}`,
   },
- 
+
   // ================= EMPLOYEES =================
   EMPLOYEES: {
     LIST: "/Employees",
@@ -241,14 +179,14 @@ export const API = {
     EXPORT_PROFILE_PDF: (employeeId) =>
       `/Employees/export-profile-pdf/${employeeId}`,
   },
- 
+
   // ================= EMPLOYEE FULL DETAILS =================
   EMPLOYEE_FULL: {
     MY_DETAILS: "/EmployeeFullDetail/my-details",
     UPDATE_MY: "/EmployeeFullDetail/my-details",
     GET_BY_ID: (id) => `/EmployeeFullDetail/${id}`,
   },
- 
+
   // ================= EMPLOYEE PERSONAL =================
   EMPLOYEE_PERSONAL: {
     // Kept lowercase to match the current working backend path used by the app.
@@ -258,7 +196,7 @@ export const API = {
     UPDATE: (id) => `/employeepersonalinfo/${id}`,
     DELETE: (id) => `/employeepersonalinfo/${id}`,
   },
- 
+
   // ================= BANK DETAILS =================
   BANK: {
     CREATE: "/EmployeeBankDetails",
@@ -266,6 +204,7 @@ export const API = {
     UPDATE: (id) => `/EmployeeBankDetails/${id}`,
     DELETE: (id) => `/EmployeeBankDetails/${id}`,
   },
+
   EMPLOYEE_SALARY_STRUCTURE: {
     CREATE: "/EmployeeSalaryStructure",
     GET_BY_EMPLOYEE: (employeeId) =>
@@ -273,7 +212,7 @@ export const API = {
     UPDATE: (employeeId) =>
       `/EmployeeSalaryStructure/${employeeId}`,
   },
- 
+
   // ================= EDUCATION =================
   EDUCATION: {
     CREATE: "/EmployeeEducation",
@@ -281,7 +220,7 @@ export const API = {
     UPDATE: (id) => `/EmployeeEducation/${id}`,
     DELETE: (id) => `/EmployeeEducation/${id}`,
   },
- 
+
   // ================= EXPERIENCE =================
   EXPERIENCE: {
     CREATE: "/EmployeeExperience",
@@ -291,25 +230,25 @@ export const API = {
   //================== EMPLOYEE DOCUMENTS =================
   EMPLOYEE_DOCUMENTS: {
     UPLOAD: "/EmployeeDocuments/upload",
- 
+
     GET_BY_EMPLOYEE: (employeeId) =>
       `/EmployeeDocuments/${employeeId}`,
- 
+
     DELETE: (id) =>
       `/EmployeeDocuments/${id}`,
- 
+
     VIEW: (id) =>
       `/EmployeeDocuments/view/${id}`,
- 
+
     DOWNLOAD: (id) =>
       `/EmployeeDocuments/download/${id}`,
- 
+
     VERIFY: (id) =>
       `/EmployeeDocuments/verify/${id}`,
- 
+
     REJECT: (id) =>
       `/EmployeeDocuments/reject/${id}`,
- 
+
     CHECKLIST: (employeeId) =>
       `/EmployeeDocuments/checklist/${employeeId}`,
   },
@@ -341,7 +280,7 @@ export const API = {
     DELETE: (id) => `/OnboardingDocuments/${id}`,
   },
   //================== EMPLOYEE AGREEMENTS =================
-AGREEMENTS: {
+  AGREEMENTS: {
     UPLOAD: "/Agreement/upload",
     SIGN: "/Agreement/sign",
     ADMIN_STATUS: "/Agreement/GetAllAgreements",
@@ -353,7 +292,7 @@ AGREEMENTS: {
     SIGNED: (employeeId) => `/Agreement/Signed/${employeeId}`,
     DOWNLOAD: (id) => `/Agreement/download/${id}`,
     FILE_PATH: (id) => `/Agreement/filepath/${id}`,
-},
+  },
   // ================= LEAVE =================
   LEAVE: {
     CREATE: "/EmployeeLeave",
@@ -369,7 +308,7 @@ AGREEMENTS: {
     APPLY: "/EmployeeLeave/apply",
     MY_LEAVES: "/EmployeeLeave/my-leaves",
   },
- 
+
   // ================= WFH =================
   WFH: {
     APPLY: "/EmployeeLeave/apply-wfh",
@@ -390,6 +329,8 @@ AGREEMENTS: {
     POLICIES: "/Settings/policies",
     POLICY: (type) => `/Settings/policy/${type}`,
     UPDATE_POLICY: "/Settings/policy",
+    BRANDING: "/Settings/branding",
+    BRANDING_UPLOAD: "/Settings/branding/logo",
   },
 
   // ================= HRMS SETTINGS =================
@@ -567,6 +508,14 @@ AGREEMENTS: {
     CREATE: "/Template",
     DELETE: (id) => `/Template/${id}`,
     DOWNLOAD: (id) => `/Template/download/${id}`,
+    SET_DEFAULT: (id) => `/Template/set-default/${id}`,
+  },
+
+  TEMPLATE_MODULE: {
+    LIST: "/TemplateModule",
+    CREATE: "/TemplateModule",
+    UPDATE: (id) => `/TemplateModule/${id}`,
+    DELETE: (id) => `/TemplateModule/${id}`,
   },
 
   WORKFLOW: {
@@ -585,7 +534,7 @@ AGREEMENTS: {
     DOWNLOAD: (id) => `/Form16/download/${id}`,
     DELETE: (id) => `/Form16/${id}`,
   },
- 
+
   // ================= TEAM =================
   TEAM: {
     LIST: "/Team",
@@ -601,7 +550,7 @@ AGREEMENTS: {
     AVAILABLEEMPLOYEES: "/Team/available-employees",
     MANAGERS: "/Team/managers",
   },
- 
+
   // ================= HOLIDAYS =================
   HOLIDAYS: {
     LIST: "/Holidays",
@@ -609,7 +558,7 @@ AGREEMENTS: {
     UPDATE: (id) => `/Holidays/${id}`,
     DELETE: (id) => `/Holidays/${id}`,
   },
- 
+
   // ================= JOB OPENINGS =================
   JOBS: {
     LIST: "/JobOpenings",
@@ -617,7 +566,7 @@ AGREEMENTS: {
     UPDATE: (title) => `/JobOpenings/${title}`,
     DELETE: (title) => `/JobOpenings/${title}`,
   },
- 
+
   // ================= PROJECTS =================
   PROJECTS: {
     LIST: "/Projects",
@@ -652,17 +601,38 @@ AGREEMENTS: {
     UPDATE: (id) => `/Roles/${id}`,
     DELETE: (id) => `/Roles/${id}`,
   },
- 
+
+  // ================= ROLE PERMISSION =================
+  ROLE_PERMISSION: {
+    GET: (roleName) => `/RolePermission/${roleName}`,
+    SAVE: "/RolePermission/save",
+    MODULES: "/RolePermission/allowed-modules",
+    EMPLOYEES: (roleName) => `/RolePermission/employees/${roleName}`,
+  },
+
+  // ================= USER PERMISSION =================
+  USER_PERMISSION: {
+    SAVE: "/UserPermission",
+    GET: (employeeId) => `/UserPermission/${employeeId}`,
+    ALLOWED: (employeeId) => `/UserPermission/allowed/${employeeId}`,
+  },
+
+  // ================= PERMISSION =================
+  PERMISSION: {
+    GET: "/Permission",
+  },
+
   // ================= REPORTS =================
   REPORTS: {
     ALL: "/reports/all",
   },
- 
+
   // ================= PAYSLIP =================
   PAYSLIP: {
     // Kept as PaySlip because that is what the current app/backend uses.
     GENERATE: "/PaySlip/generate",
     GENERATE_ALL: "/PaySlip/generate-all",
+    SEND_ALL_EMAILS: "/PaySlip/send-all-emails",
     RECENT: "/PaySlip/recent",
     PREVIEW: (id) => `/PaySlip/preview/${id}`,
     DOWNLOAD: (id) => `/PaySlip/download/${id}`,
@@ -671,7 +641,7 @@ AGREEMENTS: {
     MY: "/PaySlip/my",
     MANUAL_GENERATE: "/manual-payslip/generate",
   },
- 
+
   // ================= OFFER LETTER =================
   OFFER: {
     // Kept Generate casing to match the current working backend route.
@@ -696,7 +666,7 @@ AGREEMENTS: {
     DOWNLOAD: (id) => `/RelievingLetter/download/${id}`,
     DELETE: (id) => `/RelievingLetter/${id}`,
   },
- 
+
   // ================= EXPERIENCE LETTER =================
   EXPERIENCE_LETTER: {
     GENERATE: "/ExperienceLetter/generate",
@@ -710,12 +680,12 @@ AGREEMENTS: {
 
     DELETE: (id) => `/ExperienceLetter/${id}`,
   },
- 
+
   // ================= SEARCH =================
   SEARCH: {
     MODULE: "/ModuleSearch/search",
   },
- 
+
   // ================= LEAVE BALANCE =================
   LEAVE_BALANCE: {
     GET: (id) => `/LeaveBalance/${id}`,
@@ -723,14 +693,12 @@ AGREEMENTS: {
     MY_LEAVE_BALANCE: "/LeaveBalance/my-leave-balance",
   },
 };
- 
+
 export const API_ENDPOINTS = {
   auth: {
-    login: API.AUTH.LOGIN,
-    loginByRole: API.AUTH.LOGIN_BY_ROLE,
-    adminLogin: API.AUTH.LOGIN_BY_ROLE("admin"),
-    userLogin: API.AUTH.LOGIN_BY_ROLE("user"),
-    superAdminLogin: API.AUTH.LOGIN_BY_ROLE("superadmin"),
+    superAdminLogin: API.AUTH.SUPER_ADMIN_LOGIN,
+    adminLogin: API.AUTH.ADMIN_LOGIN,
+    userLogin: API.AUTH.USER_LOGIN,
     userRegister: API.AUTH.REGISTER,
     adminForgotPassword: API.AUTH.ADMIN.FORGOT_PASSWORD,
     adminVerifyOtp: API.AUTH.ADMIN.VERIFY_OTP,
@@ -761,11 +729,24 @@ export const API_ENDPOINTS = {
         ? API.AUTH.USER.CHANGE_PASSWORD
         : API.AUTH.ADMIN.CHANGE_PASSWORD,
   },
+  rolePermission: {
+    allowedModules: API.ROLE_PERMISSION.MODULES,
+    byRoleName: API.ROLE_PERMISSION.GET,
+    save: API.ROLE_PERMISSION.SAVE,
+    employees: API.ROLE_PERMISSION.EMPLOYEES,
+  },
+  userPermission: {
+    save: API.USER_PERMISSION.SAVE,
+    get: API.USER_PERMISSION.GET,
+    allowed: API.USER_PERMISSION.ALLOWED,
+  },
+  permission: {
+    get: API.PERMISSION.GET,
+  },
   dashboard: API.DASHBOARD.ADMIN,
   superAdmin: {
     login: API.SUPER_ADMIN.LOGIN,
     dashboard: API.SUPER_ADMIN.DASHBOARD,
-    permissions: API.SUPER_ADMIN.PERMISSIONS,
   },
   adminManagement: {
     create: API.ADMIN.CREATE,
@@ -776,12 +757,6 @@ export const API_ENDPOINTS = {
     save: API.ADMIN_PERMISSION.SAVE,
     get: API.ADMIN_PERMISSION.GET,
     allowedModules: API.ADMIN_PERMISSION.ALLOWED_MODULES,
-  },
-  rolePermission: {
-    get: API.ROLE_PERMISSION.GET,
-    byRoleName: API.ROLE_PERMISSION.GET,
-    save: API.ROLE_PERMISSION.SAVE,
-    allowedModules: API.ROLE_PERMISSION.ALLOWED_MODULES,
   },
   adminSubscription: {
     create: API.ADMIN_SUBSCRIPTION.CREATE,
@@ -882,14 +857,13 @@ export const API_ENDPOINTS = {
 
     download: API.AGREEMENTS.DOWNLOAD,
     filePath: API.AGREEMENTS.FILE_PATH,
-},
+  },
   company: {
     // 🔥 ADD THIS (MAIN COMPANY APIs)
-    list: "/Company",
     create: "/Company",
     getById: (id) => `/Company/${id}`,
     update: (id) => `/Company/${id}`,
- 
+
     // EXISTING
     branches: {
       list: API.BRANCHES.LIST,
@@ -904,7 +878,7 @@ export const API_ENDPOINTS = {
       byId: API.PROJECTS.UPDATE,
     },
   },
- 
+
   masters: {
     roles: {
       list: API.ROLES.LIST,
@@ -922,7 +896,7 @@ export const API_ENDPOINTS = {
   attendance: {
     checkIn: API.ATTENDANCE.CHECKIN,
     checkOut: API.ATTENDANCE.CHECKOUT,
- 
+
     startBreak: API.ATTENDANCE.START_BREAK,
     endBreak: API.ATTENDANCE.END_BREAK,
     weekly: API.ATTENDANCE.WEEKLY,
@@ -940,7 +914,7 @@ export const API_ENDPOINTS = {
     downloadWeekly: API.ATTENDANCE.DOWNLOAD_WEEKLY,
     downloadDaily: API.ATTENDANCE.DOWNLOAD_DAILY,
     uploadMonthly: API.ATTENDANCE.UPLOAD_MONTHLY,
- 
+
     workingHours: API.ATTENDANCE.WORKING_HOURS,
   },
   leave: {
@@ -970,6 +944,8 @@ export const API_ENDPOINTS = {
     policies: API.SETTINGS.POLICIES,
     policy: API.SETTINGS.POLICY,
     updatePolicy: API.SETTINGS.UPDATE_POLICY,
+    branding: API.SETTINGS.BRANDING,
+    brandingUpload: API.SETTINGS.BRANDING_UPLOAD,
   },
   appraisal: {
     list: API.APPRAISAL.LIST,
@@ -1124,7 +1100,16 @@ export const API_ENDPOINTS = {
     create: API.TEMPLATE.CREATE,
     delete: API.TEMPLATE.DELETE,
     download: API.TEMPLATE.DOWNLOAD,
+    setDefault: API.TEMPLATE.SET_DEFAULT,
   },
+
+  templateModule: {
+    list: API.TEMPLATE_MODULE.LIST,
+    create: API.TEMPLATE_MODULE.CREATE,
+    update: API.TEMPLATE_MODULE.UPDATE,
+    delete: API.TEMPLATE_MODULE.DELETE,
+  },
+
   workflow: {
     create: API.WORKFLOW.CREATE,
     addStep: API.WORKFLOW.ADD_STEP,
@@ -1153,8 +1138,9 @@ export const API_ENDPOINTS = {
     availableEmployees: API.TEAM.AVAILABLEEMPLOYEES,
     managers: API.TEAM.MANAGERS,
     projects: {
-      list: API.PROJECTS.LIST,}
- 
+      list: API.PROJECTS.LIST,
+    }
+
   },
   tickets: {
     list: API.TICKETS.LIST,
@@ -1185,6 +1171,8 @@ export const API_ENDPOINTS = {
     myPayslips: API.PAYSLIP.MY,
     recent: API.PAYSLIP.RECENT,
     generate: API.PAYSLIP.GENERATE,
+    generateAll: API.PAYSLIP.GENERATE_ALL,
+    sendAllEmails: API.PAYSLIP.SEND_ALL_EMAILS,
     preview: API.PAYSLIP.PREVIEW,
     download: API.PAYSLIP.DOWNLOAD,
     delete: API.PAYSLIP.DELETE,
@@ -1215,7 +1203,7 @@ export const API_ENDPOINTS = {
   reports: {
     all: API.REPORTS.ALL,
   },
-   experienceLetters: {
+  experienceLetters: {
     generate: API.EXPERIENCE_LETTER.GENERATE,
     all: API.EXPERIENCE_LETTER.GET_ALL,
     preview: API.EXPERIENCE_LETTER.PREVIEW,
@@ -1223,16 +1211,15 @@ export const API_ENDPOINTS = {
     download: API.EXPERIENCE_LETTER.DOWNLOAD,
     delete: API.EXPERIENCE_LETTER.DELETE,
   },
-  EXPERIENCE_LETTER: API.EXPERIENCE_LETTER,
   leaveBalance: {
     byEmployee: API.LEAVE_BALANCE.BALANCE,
     myLeaveBalance: API.LEAVE_BALANCE.MY_LEAVE_BALANCE,
   },
 };
- 
+
 export const buildApiUrl = (path) =>
   `${BASE_URL}/${normalizePath(path)}`;
- 
+
 export const buildServerUrl = (path) =>
   (() => {
     const rawPath = String(path || "").trim();

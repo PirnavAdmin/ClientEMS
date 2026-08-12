@@ -1,3 +1,5 @@
+import { clearCurrentAdminAllowedModules } from "./adminPermissionState";
+
 const AUTH_KEYS = [
   "token",
   "authToken",
@@ -872,6 +874,12 @@ const EMPLOYEE_PERMISSION_STORAGE_KEYS = [
   "employeePermissionModules",
 ];
 
+const GENERIC_PERMISSION_STORAGE_KEYS = [
+  "permissions",
+  "modules",
+  "allowedModules",
+];
+
 const getPermissionScopeForRole = (roleValue = "") => {
   const normalizedRole = normalizeStoredRole(roleValue);
 
@@ -1065,18 +1073,61 @@ const readStoredPermissionSnapshot = (storageKeys, extractor) => {
   return null;
 };
 
+const readStoredPermissionSnapshotWithFallback = (storageKeys, extractor) => {
+  const snapshot = readStoredPermissionSnapshot(storageKeys, extractor);
+
+  if (snapshot) {
+    return snapshot;
+  }
+
+  return readStoredPermissionSnapshot(GENERIC_PERMISSION_STORAGE_KEYS, extractor);
+};
+
 export const getStoredAdminPermissionSnapshot = () => {
-  return readStoredPermissionSnapshot(
+  return readStoredPermissionSnapshotWithFallback(
     ADMIN_PERMISSION_STORAGE_KEYS,
     extractStoredPermissionSnapshot
   );
 };
 
 export const getStoredEmployeePermissionSnapshot = () => {
-  return readStoredPermissionSnapshot(
+  return readStoredPermissionSnapshotWithFallback(
     EMPLOYEE_PERMISSION_STORAGE_KEYS,
     extractStoredEmployeePermissionSnapshot
   );
+};
+
+const readStoredPermissionsFromKeys = (storageKeys = []) => {
+  const storage = getActiveAuthStorage();
+  const otherStorage = storage === sessionStorage ? localStorage : sessionStorage;
+  const storages = [storage, otherStorage];
+
+  for (const store of storages) {
+    if (!store) {
+      continue;
+    }
+
+    for (const key of storageKeys) {
+      const storedValue = store.getItem(key);
+
+      if (storedValue === null) {
+        continue;
+      }
+
+      try {
+        const parsedValue = JSON.parse(storedValue);
+        const permissions = extractStoredPermissionList(parsedValue);
+
+        if (Array.isArray(permissions)) {
+          return permissions;
+        }
+      } catch {
+        // Keep looking in the next storage/key pair.
+      }
+    }
+  }
+
+  return [];
 };
 
 export const persistAdminPermissions = (snapshot = {}) => {
@@ -1156,9 +1207,6 @@ export const getStoredJwtPayload = () => decodeJwtPayload(getStoredToken());
 export const getStoredJwtRole = () =>
   getValueFromRecord(getStoredJwtPayload(), JWT_ROLE_KEYS);
 
-export const getStoredJwtEmployeeId = () =>
-  getValueFromRecord(getStoredJwtPayload(), JWT_EMPLOYEE_ID_KEYS);
-
 export const getStoredUserRecord = () => {
   for (const key of JSON_STORAGE_KEYS) {
     const record = getStoredJsonRecord(key);
@@ -1180,7 +1228,6 @@ export const getAuthenticatedUserSnapshot = () => {
   const storedRoleName = getStoredRoleName();
   const adminId = getStoredAdminId();
   const adminEmail = getStoredAdminEmail();
-  const employeeId = getStoredJwtEmployeeId();
   const superAdminId = getStoredAuthValue("superAdminId");
   const userId = getStoredUserId();
 
@@ -1210,7 +1257,6 @@ export const getAuthenticatedUserSnapshot = () => {
     roles: getStoredRoles(),
     id: userId || adminId || superAdminId || "",
     adminId,
-    employeeId,
     adminEmail,
     superAdminId,
     refreshToken,
@@ -1251,6 +1297,7 @@ export const clearAuthData = () => {
   });
 
   sessionStorage.clear();
+  clearCurrentAdminAllowedModules();
 };
 
 export const getStoredAuthValue = (key, fallback = "") =>
@@ -1334,33 +1381,16 @@ export const getStoredPermissions = (roleHint = "") => {
   const storageKeys = storageScope
     ? getPermissionStorageKeysForScope(storageScope)
     : ADMIN_PERMISSION_STORAGE_KEYS;
-  const storage = getActiveAuthStorage();
-  const otherStorage = storage === sessionStorage ? localStorage : sessionStorage;
-  const storages = [storage, otherStorage];
+  const scopedPermissions = readStoredPermissionsFromKeys(storageKeys);
 
-  for (const store of storages) {
-    if (!store) {
-      continue;
-    }
+  if (scopedPermissions.length > 0) {
+    return scopedPermissions;
+  }
 
-    for (const key of storageKeys) {
-      const storedValue = store.getItem(key);
+  const fallbackPermissions = readStoredPermissionsFromKeys(GENERIC_PERMISSION_STORAGE_KEYS);
 
-      if (storedValue === null) {
-        continue;
-      }
-
-      try {
-        const parsedValue = JSON.parse(storedValue);
-        const permissions = extractStoredPermissionList(parsedValue);
-
-        if (Array.isArray(permissions)) {
-          return permissions;
-        }
-      } catch {
-        // Keep looking in the next storage/key pair.
-      }
-    }
+  if (fallbackPermissions.length > 0) {
+    return fallbackPermissions;
   }
 
   if (!storageScope) {
@@ -1412,6 +1442,8 @@ export const hasStoredPermissionsCache = (roleHint = "") => {
   return (
     hasPermissionCacheKey(storage, storageKeys) ||
     hasPermissionCacheKey(otherStorage, storageKeys) ||
+    hasPermissionCacheKey(storage, GENERIC_PERMISSION_STORAGE_KEYS) ||
+    hasPermissionCacheKey(otherStorage, GENERIC_PERMISSION_STORAGE_KEYS) ||
     (!storageScope &&
       (hasPermissionCacheKey(storage, EMPLOYEE_PERMISSION_STORAGE_KEYS) ||
         hasPermissionCacheKey(otherStorage, EMPLOYEE_PERMISSION_STORAGE_KEYS)))

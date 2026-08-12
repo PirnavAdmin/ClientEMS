@@ -4,8 +4,8 @@ import {
   getStoredRoleName,
   getStoredPermissions,
   getStoredAuthValue,
-  getStoredJwtEmployeeId,
 } from "./authStorage";
+import { getCurrentAdminAllowedModules } from "./adminPermissionState";
 import { ticketPermissionMatches } from "../TicketManagement/ticketConfig";
 import { toBoolean } from "./boolean";
 
@@ -224,9 +224,6 @@ export const isEmployee = (value) => {
 
 export const isEmployeeUser = () => isEmployee();
 
-export const hasEmployeeIdClaim = () =>
-  Boolean(String(getStoredJwtEmployeeId() ?? "").trim());
-
 export const isOnboardingUser = () =>
   isStoredOnboardingUser() || hasRole("onboarding", "candidate");
 
@@ -236,23 +233,25 @@ const normalizeModuleName = (value) =>
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
 
-const EMPLOYEE_ONLY_MODULE_NAMES = new Set(
-  [
-    "User Notifications",
-    "User Leave Management",
-    "User Attendance",
-    "User Payslip",
-    "User Holidays",
-    "Add Details",
-  ].map(normalizeModuleName)
-);
+const MODULE_PERMISSION_ALIASES = new Map([
+  ["offerletters", "offerletters"],
+  ["offerletter", "offerletters"],
+  ["viewpurpose", "offerletters"],
+]);
 
-export const isEmployeeOnlyModule = (moduleName) =>
-  EMPLOYEE_ONLY_MODULE_NAMES.has(normalizeModuleName(moduleName));
+const normalizeModulePermissionName = (value) => {
+  const normalized = normalizeModuleName(value);
+
+  if (!normalized) {
+    return "";
+  }
+
+  return MODULE_PERMISSION_ALIASES.get(normalized) || normalized;
+};
 
 export const modulePermissionMatches = (permissionModule, requestedModule) => {
-  const storedModule = normalizeModuleName(permissionModule);
-  const targetModule = normalizeModuleName(requestedModule);
+  const storedModule = normalizeModulePermissionName(permissionModule);
+  const targetModule = normalizeModulePermissionName(requestedModule);
 
   if (!storedModule || !targetModule) {
     return false;
@@ -272,6 +271,48 @@ export const hasModulePermission = (moduleName, action = "canAccess") => {
 
   if (isOnboardingUser()) {
     return false;
+  }
+
+  const activeRole = getUserRole() || getUserRoleName();
+
+  if (activeRole === "admin") {
+    const permissions = getCurrentAdminAllowedModules();
+
+    if (!Array.isArray(permissions) || permissions.length === 0) {
+      return false;
+    }
+
+    return permissions.some((permission) => {
+      const permissionModule = permission.moduleName ?? permission.ModuleName;
+
+      if (
+        !modulePermissionMatches(permissionModule, moduleName) &&
+        !ticketPermissionMatches(permissionModule, moduleName)
+      ) {
+        return false;
+      }
+
+      const canAccess =
+        permission.canAccess ??
+        permission.CanAccess ??
+        permission.canView ??
+        permission.CanView ??
+        true;
+
+      if (canAccess !== true) {
+        return false;
+      }
+
+      if (!action || action === "canAccess") {
+        return true;
+      }
+
+      return (
+        permission[action] ??
+        permission[action[0].toUpperCase() + action.slice(1)] ??
+        canAccess
+      ) === true;
+    });
   }
 
   const permissions = getStoredPermissions();

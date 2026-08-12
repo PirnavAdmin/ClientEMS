@@ -455,6 +455,28 @@
   transform: none !important;
 }
 
+.payroll-page .payroll-employee-pagination .app-pagination-controls {
+  width: 100%;
+  min-width: 0;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  box-sizing: border-box;
+}
+
+.payroll-page .payroll-employee-pagination .app-pagination-page-size-group {
+  order: 2;
+  flex: 1 0 100%;
+  justify-content: center;
+}
+
+.payroll-page .payroll-employee-pagination .app-pagination-button,
+.payroll-page .payroll-employee-pagination .pagination-btn {
+  min-width: 34px;
+  padding: 0 8px;
+}
+
 .payroll-period-btn:hover,
 .payroll-period-btn:focus,
 .payroll-period-btn:focus-visible,
@@ -639,6 +661,18 @@
   background: var(--surface-danger-soft);
   color: var(--theme-danger-strong);
   border-color: var(--theme-danger);
+}
+
+.payroll-generation-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.payroll-generation-messages .success-message,
+.payroll-generation-messages .error-message {
+  margin-bottom: 0;
 }
 
 /* =========================
@@ -1045,6 +1079,18 @@
   color: var(--text-strong);
 }
 
+.generation-overlay-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.generation-progress {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
 .generation-loader {
   width: 22px;
   height: 22px;
@@ -1186,6 +1232,16 @@ input[type="number"] {
   .period-section {
     flex-direction: column;
     gap: 20px;
+  }
+
+  .specific-period .period-buttons {
+    flex-direction: column;
+    align-items: stretch;
+    flex-wrap: nowrap;
+  }
+
+  .specific-period .period-buttons select {
+    width: 100%;
   }
 
   .employee-header {
@@ -1894,6 +1950,33 @@ input[type="number"] {
 
 .payroll-skeleton-cell {
   padding: 0;
+}
+
+.payroll-recent-loading-cell {
+  padding: 0;
+}
+
+.payroll-recent-loading-state {
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.payroll-recent-loading-state p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.payroll-recent-loading-spinner {
+  width: 24px;
+  height: 24px;
 }
 
 .payroll-empty-state {

@@ -5,16 +5,15 @@ import Sidebar from "./Sidebar/Sidebar";
 import Header from "./dashboard/Header";
 import MobileBottomNav from "./components/mobile/MobileBottomNav";
 import { PageSkeleton } from "./components/Skeletons";
-import { usePermissionScope } from "./context/usePermissionScope";
 import { getStoredToken } from "./utils/authStorage";
 import { isOnboardingUser } from "./utils/authorization";
 import { handleAutoLogout, isSessionExpired, startSessionTimer, clearSessionTimer } from "./utils/sessionManager";
 
 const MOBILE_LAYOUT_QUERY = "(max-width: 991px)";
 
-function MainLayout() {
+function MainLayout({ permissionScope }) {
   const location = useLocation();
-  const { loadingPermissions, error, errorStatus, refreshPermissions } = usePermissionScope();
+  const { loadingPermissions, error, errorStatus, refreshPermissions } = permissionScope;
   const [isMobileViewport, setIsMobileViewport] = useState(() => {
     if (typeof window === "undefined" || !window.matchMedia) {
       return false;

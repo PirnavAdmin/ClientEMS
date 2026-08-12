@@ -32,10 +32,9 @@ import {
 } from "../../utils/authorization";
 import { SettingsBanner, SettingsCard, SettingsField, SettingsStatPill } from "./SettingsShared";
 import { shiftModuleOptions, shiftModulesConfig, standaloneSettingsModules } from "./hrmsSettingsConfig";
-import { taxModuleOptions, taxModulesConfig } from "./taxModulesConfig";
 import { templateModuleOptions, templateModulesConfig } from "./templateConfig";
-import { workflowModuleOptions, workflowModulesConfig } from "./workflowConfig";
 import "./Settings.css";
+import templateModuleService from "../../services/templateModuleService";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
@@ -267,7 +266,12 @@ function RecordModal({ mode, config, record, onClose, onSubmit, saving }) {
       return;
     }
 
-    onSubmit(buildPayload(config.formFields, values));
+    const payload = buildPayload(config.formFields, values);
+
+console.log("VALUES:", values);
+console.log("PAYLOAD:", payload);
+
+onSubmit(payload);
   };
 
   return (
@@ -431,6 +435,7 @@ function HrmsSettingsPage({
   const [modalState, setModalState] = useState(null);
   const [workflowState, setWorkflowState] = useState(null);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [templateModules, setTemplateModules] = useState([]);
 
   const modulePermissionName = activeConfig?.moduleName || "";
   const canView = activeConfig ? hasViewPermission(modulePermissionName) : false;
@@ -499,6 +504,19 @@ function HrmsSettingsPage({
   useEffect(() => {
     fetchRecords();
   }, [activeConfig.title, JSON.stringify(filterValues)]);
+
+  useEffect(() => {
+    if (activeConfig.moduleName !== "Templates") return;
+
+    templateModuleService.getAll().then((res) => {
+        setTemplateModules(
+            res.data.map(x => ({
+                value: x.moduleId,
+                label: x.moduleName
+            }))
+        );
+    });
+}, [activeConfig.moduleName]);
 
   const filteredRecords = useMemo(
     () => filterRecords(records, activeConfig, search, filterValues),
@@ -856,8 +874,8 @@ function HrmsSettingsPage({
                               <FaTrash />
                             </button>
                           )}
-                          {(activeConfig?.workflowButtons ?? []).map((action) =>
-                            canWorkflow(action.permission) ? (
+                         {(activeConfig?.workflowButtons ?? []).map((action) =>
+  activeConfig.moduleName === "Templates" || canWorkflow(action.permission) ? (
                               <button
                                 key={action.key}
                                 type="button"
@@ -873,6 +891,8 @@ function HrmsSettingsPage({
                               </button>
                             ) : null
                           )}
+
+                          
                         </div>
                       </td>
                     </tr>
@@ -898,15 +918,22 @@ function HrmsSettingsPage({
         activeConfig &&
         activeConfig.formFields &&
         Array.isArray(activeConfig.formFields) && (
-          <RecordModal
-            mode={modalState.mode}
-            config={activeConfig}
-            record={modalState.record}
-            onClose={() => setModalState(null)}
-            onSubmit={handleSubmitRecord}
-            saving={actionLoading}
-          />
-        )}
+         <RecordModal
+    mode={modalState.mode}
+    config={{
+        ...activeConfig,
+        formFields: activeConfig.formFields.map((field) =>
+            field.name === "moduleId"
+                ? { ...field, options: templateModules }
+                : field
+        ),
+    }}
+    record={modalState.record}
+    onClose={() => setModalState(null)}
+    onSubmit={handleSubmitRecord}
+    saving={actionLoading}
+/>
+)}
 
       {workflowState && (
         <WorkflowModal
@@ -930,16 +957,6 @@ function HrmsSettingsPage({
   );
 }
 
-export const TaxManagementSettingsPage = () => (
-  <HrmsSettingsPage
-    configMap={taxModulesConfig}
-    moduleOptions={taxModuleOptions}
-    initialModuleKey="taxDeclaration"
-    pageTitle="Tax Management"
-    pageDescription="Manage tax declarations, declaration items, proofs, TDS, and Form16 from one settings page."
-  />
-);
-
 export const TemplateSettingsPage = () => (
   <HrmsSettingsPage
     configMap={templateModulesConfig}
@@ -947,16 +964,6 @@ export const TemplateSettingsPage = () => (
     initialModuleKey="templates"
     pageTitle="Template Settings"
     pageDescription="Manage document templates with upload, download, delete, and live template listing."
-  />
-);
-
-export const WorkflowSettingsPage = () => (
-  <HrmsSettingsPage
-    configMap={workflowModulesConfig}
-    moduleOptions={workflowModuleOptions}
-    initialModuleKey="workflow"
-    pageTitle="Workflow Settings"
-    pageDescription="Create workflows, add steps, review pending approvals, and inspect approval history."
   />
 );
 

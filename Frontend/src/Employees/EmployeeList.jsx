@@ -22,6 +22,7 @@ import {
   SALARY_MIN,
   buildSalaryBreakupPayload,
 } from "../utils/salaryStructure";
+import { toastSuccess, toastError } from "../components/common/Toast/toastService";
 
 const initialEmployeeForm = {
   id: "",
@@ -188,8 +189,6 @@ function EmployeeList() {
 
   const [departments, setDepartments] = useState([]);
   const [roles, setRoles] = useState([]);
-  const [message, setMessage] = useState("");
-  const [messageType, setMessageType] = useState("");
   const [newDept, setNewDept] = useState("");
   const [newRole, setNewRole] = useState("");
   const [errors, setErrors] = useState({});
@@ -244,12 +243,10 @@ function EmployeeList() {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
 
-      setMessage(successMessage);
-      setMessageType("success");
+      toastSuccess(successMessage);
     } catch (error) {
       console.error(`${consoleLabel} error:`, error);
-      setMessage(errorMessage);
-      setMessageType("error");
+      toastError(errorMessage);
     } finally {
       setLoadingState(false);
     }
@@ -284,8 +281,7 @@ function EmployeeList() {
         setEmpList(normalizeEmployeeList(empRes, roleOptions));
       } catch (err) {
         console.error("Data load error:", err);
-        setMessage("Unable to load employees.");
-        setMessageType("error");
+        toastError("Unable to load employees.");
       } finally {
         setLoading(false);
       }
@@ -293,16 +289,6 @@ function EmployeeList() {
 
     loadData();
   }, []);
-
-  useEffect(() => {
-    if (!message) return undefined;
-
-    const timer = setTimeout(() => {
-      setMessage("");
-    }, 3000);
-
-    return () => clearTimeout(timer);
-  }, [message]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -334,8 +320,7 @@ function EmployeeList() {
       return true;
     } catch (err) {
       console.error("Employee fetch error:", err.response?.data || err.message);
-      setMessage("Unable to refresh employees.");
-      setMessageType("error");
+      toastError("Unable to refresh employees.");
       return false;
     }
   };
@@ -348,6 +333,9 @@ function EmployeeList() {
       [name]:
         name === "id"
           ? value
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, "")
+            .slice(0, 7)
           : name === "name"
             ? value
               .replace(/[^A-Za-z\s]/g, "")
@@ -399,18 +387,30 @@ function EmployeeList() {
     // =========================
     // EMPLOYEE ID VALIDATION
     // =========================
-    const employeeId = empForm.id.trim();
+    const employeeId = empForm.id.trim().toUpperCase();
 
     if (!employeeId) {
       nextErrors.id = "Employee ID is required";
-    } else if (!isEditMode) {
-      const idExists = empList.some(
-        (emp) =>
-          String(emp.id).toLowerCase() === employeeId.toLowerCase()
-      );
+    } else {
+      // 1 or 2 alphabets + exactly 5 digits
+      // Examples:
+      // P12345
+      // EM12345
 
-      if (idExists) {
-        nextErrors.id = "Employee ID already exists.";
+      const employeeIdRegex = /^[A-Z]{1}[0-9]{3}$/;
+
+      if (!employeeIdRegex.test(employeeId)) {
+        nextErrors.id =
+          "Employee ID must contain 1 alphabet followed by exactly 3 numbers";
+      } else if (!isEditMode) {
+        const idExists = empList.some(
+          (emp) =>
+            String(emp.id).toLowerCase() === employeeId.toLowerCase()
+        );
+
+        if (idExists) {
+          nextErrors.id = "Employee ID already exists.";
+        }
       }
     }
 
@@ -433,12 +433,6 @@ function EmployeeList() {
           "Name should not exceed 40 characters";
       }
     }
-
-    // =========================
-    // EMAIL VALIDATION
-    // =========================
-
-
     // =========================
     // EMAIL VALIDATION
     // =========================
@@ -531,8 +525,7 @@ function EmployeeList() {
         });
       }
 
-      setMessage(isEditMode ? "Employee updated successfully." : "Employee added successfully.");
-      setMessageType("success");
+      toastSuccess(isEditMode ? "Employee updated successfully." : "Employee added successfully.");
       setEmpShowModal(false);
       resetEmployeeForm();
       await fetchEmployees();
@@ -547,14 +540,12 @@ function EmployeeList() {
       const normalizedMessage = String(backendMessage).toLowerCase();
 
       if (normalizedMessage.includes("employee")) {
-        setMessage("Employee ID already exists.");
+        toastError("Employee ID already exists.");
       } else if (normalizedMessage.includes("email")) {
-        setMessage("Email already exists.");
+        toastError("Email already exists.");
       } else {
-        setMessage(backendMessage || "Failed to save employee.");
+        toastError(backendMessage || "Failed to save employee.");
       }
-
-      setMessageType("error");
     } finally {
       setIsSubmitting(false);
     }
@@ -567,13 +558,11 @@ function EmployeeList() {
       await api.delete(API_ENDPOINTS.employees.byId(employeeToDelete));
       setShowDeletePopup(false);
       setEmployeeToDelete(null);
-      setMessage("Employee deleted successfully.");
-      setMessageType("success");
+      toastSuccess("Employee deleted successfully.");
       await fetchEmployees();
     } catch (err) {
       console.error("Delete error:", err.response?.data || err.message);
-      setMessage("Delete failed.");
-      setMessageType("error");
+      toastError("Delete failed.");
     }
   };
 
@@ -594,8 +583,7 @@ function EmployeeList() {
     const used = empList.some((emp) => emp.dept === dept);
 
     if (used) {
-      setMessage("Department already assigned to an employee.");
-      setMessageType("error");
+      toastError("Department already assigned to an employee.");
       return;
     }
 
@@ -619,8 +607,7 @@ function EmployeeList() {
     const used = empList.some((emp) => emp.role === roleName);
 
     if (used) {
-      setMessage("Role already assigned to an employee.");
-      setMessageType("error");
+      toastError("Role already assigned to an employee.");
       return;
     }
 
@@ -698,7 +685,7 @@ function EmployeeList() {
         return Number(second.ctcRaw || 0) - Number(first.ctcRaw || 0);
       }
 
-      return 0;
+        return 0;
     });
   }, [departmentFilter, empList, empSearch, selectedRole, sortBy, statusFilter]);
 
@@ -816,8 +803,6 @@ function EmployeeList() {
 
   return (
     <div className="emp-page-unique">
-      {message && <div className={`emp-message ${messageType}`}>{message}</div>}
-
       <div className="emp-header-unique">
         <div>
           <h2>Employees</h2>
@@ -1228,7 +1213,7 @@ function EmployeeList() {
               </button>
               <button
                 className="emp-save-btn"
-
+                
                 onClick={handleEmployeeSubmit}
                 disabled={isSubmitting}
               >

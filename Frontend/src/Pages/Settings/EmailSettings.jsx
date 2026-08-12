@@ -58,7 +58,7 @@ function EmailSettings({
               name="senderEmail"
               value={values?.senderEmail || ""}
               onChange={onChange}
-              placeholder="admin@honeywellitsolutions.com"
+              placeholder="smtp@company.com"
               disabled={disabled}
               aria-invalid={Boolean(errors?.senderEmail)}
             />
@@ -93,7 +93,7 @@ function EmailSettings({
               name="smtpHost"
               value={values?.smtpHost || ""}
               onChange={onChange}
-              placeholder="us2.smtp.mailhostbox.com"
+              placeholder="smtp.gmail.com"
               disabled={disabled}
               aria-invalid={Boolean(errors?.smtpHost)}
             />
@@ -110,7 +110,7 @@ function EmailSettings({
               name="smtpPort"
               value={values?.smtpPort || ""}
               onChange={onChange}
-              placeholder="465"
+              placeholder="587"
               disabled={disabled}
               min="1"
               max="65535"

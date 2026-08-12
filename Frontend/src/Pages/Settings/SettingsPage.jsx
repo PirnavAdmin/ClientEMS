@@ -4,15 +4,11 @@ import { toastSuccess, toastError } from "@/components/common/toast/toastService
 import {
   FaCalendarMinus,
   FaBell,
-  FaBuilding,
   FaClock,
   FaFileAlt,
   FaFileSignature,
-  FaFileInvoiceDollar,
   FaEnvelope,
-  FaCog,
-  FaChartBar,
-  FaProjectDiagram,
+  FaImage,
   FaUserTie,
   FaMoneyBillWave,
   FaRedo,
@@ -28,21 +24,15 @@ import {
   getSettingsErrorMessage,
   EMAIL_SETTINGS_DEFAULTS,
   ATTENDANCE_SETTINGS_DEFAULTS,
-  COMPANY_SETTINGS_DEFAULTS,
   NOTIFICATION_SETTINGS_DEFAULTS,
-  GENERAL_SETTINGS_DEFAULTS,
   LEAVE_SETTINGS_DEFAULTS,
   POLICY_SETTINGS_DEFAULTS,
   fetchEmailSettings,
   saveEmailSettings,
   fetchAttendanceSettings,
   saveAttendanceSettings,
-  fetchCompanySettings,
-  saveCompanySettings,
   fetchNotificationSettings,
   saveNotificationSettings,
-  fetchGeneralSettings,
-  saveGeneralSettings,
   fetchLeaveSettings,
   saveLeaveSettings,
   fetchPoliciesSettings,
@@ -52,26 +42,18 @@ import {
 import EmailSettings from "./EmailSettings";
 import AttendanceSettings from "./AttendanceSettings";
 import LeaveSettings from "./LeaveSettings";
-import CompanySettings from "./CompanySettings";
+import BrandingSettings from "./BrandingSettings";
 import NotificationSettings from "./NotificationSettings";
-import GeneralSettings from "./GeneralSettings";
 import PolicySettings from "./PolicySettings";
 import AgreementSettings from "./AgreementSettings";
-import HrmsSettingsPage, {
-  TaxManagementSettingsPage,
-  TemplateSettingsPage,
-  WorkflowSettingsPage,
-} from "./HrmsSettingsPage";
+import HrmsSettingsPage, { TemplateSettingsPage } from "./HrmsSettingsPage";
 import {
   validateEmailSettings,
   validateAttendanceSettings,
-  validateCompanySettings,
   validateNotificationSettings,
-  validateGeneralSettings,
   validateLeaveSettings,
   validatePolicySettings,
 } from "./settingsHelpers";
-import { SettingsStatPill } from "./SettingsShared";
 import "./Settings.css";
 
 const HrmsSettingsTab = ({ moduleKey }) => (
@@ -121,17 +103,18 @@ const BASE_TAB_DEFINITIONS = [
     loadErrorMessage: "We could not load the leave configuration.",
   },
   {
-    key: "company",
-    label: "Company Settings",
-    description: "Company profile and contact details",
-    icon: FaBuilding,
-    component: CompanySettings,
-    fetchSettings: fetchCompanySettings,
-    saveSettings: saveCompanySettings,
-    validateSettings: validateCompanySettings,
-    defaults: COMPANY_SETTINGS_DEFAULTS,
+    key: "brand",
+    label: "Brand Settings",
+    description: "Company logo and branding assets",
+    icon: FaImage,
+    component: BrandingSettings,
+    fetchSettings: async () => ({ values: {}, lastUpdated: "" }),
+    saveSettings: async () => ({ values: {}, lastUpdated: "" }),
+    validateSettings: () => ({}),
+    defaults: {},
     successMessage: "Settings updated successfully.",
-    loadErrorMessage: "We could not load the company configuration.",
+    loadErrorMessage: "We could not load the branding configuration.",
+    hideFooter: true,
   },
   {
     key: "notification",
@@ -145,19 +128,6 @@ const BASE_TAB_DEFINITIONS = [
     defaults: NOTIFICATION_SETTINGS_DEFAULTS,
     successMessage: "Settings updated successfully.",
     loadErrorMessage: "We could not load the notification configuration.",
-  },
-  {
-    key: "general",
-    label: "Workspace Settings",
-    description: "Workspace preferences and backend configuration",
-    icon: FaCog,
-    component: GeneralSettings,
-    fetchSettings: fetchGeneralSettings,
-    saveSettings: saveGeneralSettings,
-    validateSettings: validateGeneralSettings,
-    defaults: GENERAL_SETTINGS_DEFAULTS,
-    successMessage: "Settings updated successfully.",
-    loadErrorMessage: "We could not load the workspace configuration.",
   },
   {
     key: "policy",
@@ -190,53 +160,11 @@ const BASE_TAB_DEFINITIONS = [
 
 const HRMS_SETTINGS_MODULES = [
   {
-    key: "taxManagement",
-    label: "Tax Management",
-    description: "Tax declarations, proofs, TDS, and Form16",
-    icon: FaFileInvoiceDollar,
-    component: TaxManagementSettingsPage,
-  },
-  {
     key: "templates",
     label: "Templates",
     description: "Document and communication templates",
     icon: FaFileSignature,
     component: TemplateSettingsPage,
-  },
-  {
-    key: "workflow",
-    label: "Workflow",
-    description: "Approval workflows and history",
-    icon: FaProjectDiagram,
-    component: WorkflowSettingsPage,
-  },
-  {
-    key: "appraisal",
-    label: "Appraisal",
-    description: "Appraisal records and review workflow",
-    icon: FaChartBar,
-    component: () => <HrmsSettingsTab moduleKey="appraisal" />,
-  },
-  {
-    key: "employeeGoals",
-    label: "Employee Goals",
-    description: "Employee goals and targets",
-    icon: FaChartBar,
-    component: () => <HrmsSettingsTab moduleKey="employeeGoals" />,
-  },
-  {
-    key: "goalReview",
-    label: "Goal Review",
-    description: "Goal review feedback and ratings",
-    icon: FaChartBar,
-    component: () => <HrmsSettingsTab moduleKey="goalReview" />,
-  },
-  {
-    key: "performanceCycle",
-    label: "Performance Cycle",
-    description: "Performance cycle setup",
-    icon: FaCalendarMinus,
-    component: () => <HrmsSettingsTab moduleKey="performanceCycle" />,
   },
   {
     key: "resignation",
@@ -290,35 +218,15 @@ const SETTINGS_GROUPS = [
       "email",
       "attendance",
       "leave",
-      "company",
+      "brand",
       "notification",
-      "general",
       "policy",
       "agreements",
-    ],
-  },
-
-  {
-    key: "hrms",
-    title: "HRMS Settings",
-    tabs: [
-      "taxManagement",
       "templates",
-      "workflow",
     ],
   },
 
-  {
-    key: "performance",
-    title: "Performance Management",
-    tabs: [
-      "appraisal",
-      "employeeGoals",
-      "goalReview",
-      "performanceCycle",
-    ],
-  },
-
+  /*
   {
     key: "exit",
     title: "Employee Exit",
@@ -329,6 +237,7 @@ const SETTINGS_GROUPS = [
       "fullFinalSettlement",
     ],
   },
+  */
 
   {
     key: "shift",

@@ -1,7 +1,7 @@
 const API_ORIGIN = (
     import.meta.env.VITE_API_ORIGIN ||
-    "https://hrms.honeywellitsolutions.com"
-    // "https://cabbage-dramatic-majesty.ngrok-free.dev"
+    // "https://hrms.honeywellitsolutions.com"
+    "https://cabbage-dramatic-majesty.ngrok-free.dev"
 ).replace(/\/+$/, "");
 
 export const SERVER_URL = API_ORIGIN;

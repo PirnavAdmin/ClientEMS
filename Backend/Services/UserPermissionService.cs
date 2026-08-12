@@ -98,48 +98,48 @@ namespace EmployeeManagementSystem.Services
                 // Check Role permission
                 // -----------------------------
 
-                var rolePermission =
-                    rolePermissions.FirstOrDefault(x =>
-                        x.ModuleId == module.ModuleId);
+                //var rolePermission =
+                //    rolePermissions.FirstOrDefault(x =>
+                //        x.ModuleId == module.ModuleId);
 
-                if (rolePermission == null)
-                {
-                    throw new Exception(
-                        $"Module {module.ModuleId} is not allowed for this employee's role.");
-                }
+                //if (rolePermission == null)
+                //{
+                //    throw new Exception(
+                //        $"Module {module.ModuleId} is not allowed for this employee's role.");
+                //}
 
 
                 // =================================================
                 // USER CANNOT EXCEED ROLE PERMISSIONS
                 // =================================================
 
-                if (module.CanView &&
-                    !rolePermission.CanView)
-                {
-                    throw new Exception(
-                        $"View permission is not allowed for module {module.ModuleId}.");
-                }
+                //if (module.CanView &&
+                //    !rolePermission.CanView)
+                //{
+                //    throw new Exception(
+                //        $"View permission is not allowed for module {module.ModuleId}.");
+                //}
 
-                if (module.CanAdd &&
-                    !rolePermission.CanAdd)
-                {
-                    throw new Exception(
-                        $"Add permission is not allowed for module {module.ModuleId}.");
-                }
+                //if (module.CanAdd &&
+                //    !rolePermission.CanAdd)
+                //{
+                //    throw new Exception(
+                //        $"Add permission is not allowed for module {module.ModuleId}.");
+                //}
 
-                if (module.CanEdit &&
-                    !rolePermission.CanEdit)
-                {
-                    throw new Exception(
-                        $"Edit permission is not allowed for module {module.ModuleId}.");
-                }
+                //if (module.CanEdit &&
+                //    !rolePermission.CanEdit)
+                //{
+                //    throw new Exception(
+                //        $"Edit permission is not allowed for module {module.ModuleId}.");
+                //}
 
-                if (module.CanDelete &&
-                    !rolePermission.CanDelete)
-                {
-                    throw new Exception(
-                        $"Delete permission is not allowed for module {module.ModuleId}.");
-                }
+                //if (module.CanDelete &&
+                //    !rolePermission.CanDelete)
+                //{
+                //    throw new Exception(
+                //        $"Delete permission is not allowed for module {module.ModuleId}.");
+                //}
             }
 
 
@@ -186,6 +186,7 @@ namespace EmployeeManagementSystem.Services
                     CreatedAt = DateTime.UtcNow
                 })
                 .ToList();
+
 
 
             // =====================================================
@@ -255,37 +256,53 @@ namespace EmployeeManagementSystem.Services
                     .ToListAsync();
 
 
-            var roleModuleIds =
-                rolePermissions
-                    .Select(x => x.ModuleId)
-                    .ToList();
+            //var roleModuleIds =
+            //    rolePermissions
+            //        .Select(x => x.ModuleId)
+            //        .ToList();
 
 
-            // =====================================================
-            // 4. LOAD ONLY ROLE ALLOWED MODULES
-            // =====================================================
+            //// =====================================================
+            //// 4. LOAD ONLY ROLE ALLOWED MODULES
+            //// =====================================================
+
+            //var modules =
+            //    await _context.Modules
+            //        .AsNoTracking()
+            //        .Where(x =>
+            //            roleModuleIds.Contains(x.ModuleId))
+            //        .OrderBy(x => x.ModuleId)
+            //        .ToListAsync();
 
             var modules =
-                await _context.Modules
-                    .AsNoTracking()
-                    .Where(x =>
-                        roleModuleIds.Contains(x.ModuleId))
-                    .OrderBy(x => x.ModuleId)
-                    .ToListAsync();
+    await _context.Modules
+        .AsNoTracking()
+        .Where(x =>
+            adminAllowedModuleIds.Contains(x.ModuleId))
+        .OrderBy(x => x.ModuleId)
+        .ToListAsync();
 
 
             // =====================================================
             // 5. USER OVERRIDES
             // =====================================================
 
+            //var userPermissions =
+            //    await _context.UserPermissions
+            //        .AsNoTracking()
+            //        .Where(x =>
+            //            x.EmployeeId == employeeId &&
+            //            roleModuleIds.Contains(
+            //                x.ModuleId))
+            //        .ToListAsync();
+
             var userPermissions =
-                await _context.UserPermissions
-                    .AsNoTracking()
-                    .Where(x =>
-                        x.EmployeeId == employeeId &&
-                        roleModuleIds.Contains(
-                            x.ModuleId))
-                    .ToListAsync();
+    await _context.UserPermissions
+        .AsNoTracking()
+        .Where(x =>
+            x.EmployeeId == employeeId &&
+            adminAllowedModuleIds.Contains(x.ModuleId))
+        .ToListAsync();
 
 
             // =====================================================
@@ -294,9 +311,17 @@ namespace EmployeeManagementSystem.Services
 
             var result = modules.Select(module =>
             {
+                //var rolePermission =
+                //    rolePermissions.First(x =>
+                //        x.ModuleId == module.ModuleId);
+
+                //var userPermission =
+                //    userPermissions.FirstOrDefault(x =>
+                //        x.ModuleId == module.ModuleId);
+
                 var rolePermission =
-                    rolePermissions.First(x =>
-                        x.ModuleId == module.ModuleId);
+    rolePermissions.FirstOrDefault(x =>
+        x.ModuleId == module.ModuleId);
 
                 var userPermission =
                     userPermissions.FirstOrDefault(x =>
@@ -315,24 +340,29 @@ namespace EmployeeManagementSystem.Services
                     // otherwise ROLE permission
 
                     CanAccess =
-                        userPermission?.CanAccess
-                        ?? rolePermission.CanAccess,
+    userPermission?.CanAccess
+    ?? rolePermission?.CanAccess
+    ?? false,
 
                     CanView =
-                        userPermission?.CanView
-                        ?? rolePermission.CanView,
+    userPermission?.CanView
+    ?? rolePermission?.CanView
+    ?? false,
 
                     CanAdd =
-                        userPermission?.CanAdd
-                        ?? rolePermission.CanAdd,
+    userPermission?.CanAdd
+    ?? rolePermission?.CanAdd
+    ?? false,
 
                     CanEdit =
-                        userPermission?.CanEdit
-                        ?? rolePermission.CanEdit,
+    userPermission?.CanEdit
+    ?? rolePermission?.CanEdit
+    ?? false,
 
                     CanDelete =
-                        userPermission?.CanDelete
-                        ?? rolePermission.CanDelete
+    userPermission?.CanDelete
+    ?? rolePermission?.CanDelete
+    ?? false
                 };
 
             }).ToList();
@@ -407,10 +437,10 @@ namespace EmployeeManagementSystem.Services
                 return new List<object>();
 
 
-            var roleModuleIds =
-                rolePermissions
-                    .Select(x => x.ModuleId)
-                    .ToList();
+            //var roleModuleIds =
+            //    rolePermissions
+            //        .Select(x => x.ModuleId)
+            //        .ToList();
 
 
             // =====================================================
@@ -418,16 +448,23 @@ namespace EmployeeManagementSystem.Services
             // ONLY FOR ROLE ALLOWED MODULES
             // =====================================================
 
+            //var userPermissions =
+            //    await _context.UserPermissions
+            //        .AsNoTracking()
+            //        .Where(x =>
+            //            x.EmployeeId == employeeId &&
+
+            //            roleModuleIds.Contains(
+            //                x.ModuleId))
+            //        .ToListAsync();
+
             var userPermissions =
-                await _context.UserPermissions
-                    .AsNoTracking()
-                    .Where(x =>
-                        x.EmployeeId == employeeId &&
-
-                        roleModuleIds.Contains(
-                            x.ModuleId))
-                    .ToListAsync();
-
+    await _context.UserPermissions
+        .AsNoTracking()
+        .Where(x =>
+            x.EmployeeId == employeeId &&
+            adminAllowedModuleIds.Contains(x.ModuleId))
+        .ToListAsync();
 
             // =====================================================
             // 5. MERGE
@@ -436,12 +473,16 @@ namespace EmployeeManagementSystem.Services
             var result = new List<object>();
 
 
-            foreach (var rolePermission in rolePermissions)
+            //foreach (var rolePermission in rolePermissions)
+            foreach (var module in modules)
             {
                 var userPermission =
-                    userPermissions.FirstOrDefault(x =>
-                        x.ModuleId ==
-                        rolePermission.ModuleId);
+    userPermissions.FirstOrDefault(x =>
+        x.ModuleId == module.ModuleId);
+
+                var rolePermission =
+                    rolePermissions.FirstOrDefault(x =>
+                        x.ModuleId == module.ModuleId);
 
 
                 // USER OVERRIDE
@@ -449,6 +490,7 @@ namespace EmployeeManagementSystem.Services
                 bool canAccess =
                     userPermission?.CanAccess
                     ?? rolePermission.CanAccess;
+                ?? false;
 
 
                 // If user explicitly disabled module
@@ -464,23 +506,45 @@ namespace EmployeeManagementSystem.Services
                     ModuleName =
                         rolePermission.Module.ModuleName,
 
+                    //CanAccess = canAccess,
+
+                    //CanView =
+                    //    userPermission?.CanView
+                    //    ?? rolePermission.CanView,
+
+                    //CanAdd =
+                    //    userPermission?.CanAdd
+                    //    ?? rolePermission.CanAdd,
+
+                    //CanEdit =
+                    //    userPermission?.CanEdit
+                    //    ?? rolePermission.CanEdit,
+
+                    //CanDelete =
+                    //    userPermission?.CanDelete
+                    //?? rolePermission.CanDelete
+
                     CanAccess = canAccess,
 
                     CanView =
-                        userPermission?.CanView
-                        ?? rolePermission.CanView,
+    userPermission?.CanView
+    ?? rolePermission?.CanView
+    ?? false,
 
                     CanAdd =
-                        userPermission?.CanAdd
-                        ?? rolePermission.CanAdd,
+    userPermission?.CanAdd
+    ?? rolePermission?.CanAdd
+    ?? false,
 
                     CanEdit =
-                        userPermission?.CanEdit
-                        ?? rolePermission.CanEdit,
+    userPermission?.CanEdit
+    ?? rolePermission?.CanEdit
+    ?? false,
 
                     CanDelete =
-                        userPermission?.CanDelete
-                        ?? rolePermission.CanDelete
+    userPermission?.CanDelete
+    ?? rolePermission?.CanDelete
+    ?? false
                 });
             }
 

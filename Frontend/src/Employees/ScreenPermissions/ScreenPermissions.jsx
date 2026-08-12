@@ -12,6 +12,11 @@ import {
   getRolePermissionErrorMessage,
   saveRolePermissions,
 } from "../../services/rolePermissionService";
+import {
+  fetchUserPermissionsByEmployeeId,
+  getUserPermissionErrorMessage,
+  saveUserPermissions,
+} from "../../services/permissionService";
 import { useAdminPermissions } from "../../context/AdminPermissionContext";
 import "./ScreenPermissions.css";
 
@@ -87,28 +92,39 @@ const normalizeScreenPermissionRow = (permission = {}, { strictAccess = false } 
 const normalizeRoleRecord = (role = {}) => ({
   roleId: normalizeId(
     role.roleId ??
-      role.id ??
-      role.role_Id ??
-      role.RoleId ??
-      role.Role_Id ??
-      ""
+    role.id ??
+    role.role_Id ??
+    role.RoleId ??
+    role.Role_Id ??
+    ""
   ),
   roleName: normalizeId(
     role.roleName ??
-      role.name ??
-      role.RoleName ??
-      role.Name ??
-      "No Name"
+    role.name ??
+    role.RoleName ??
+    role.Name ??
+    "No Name"
   ),
 });
 
 const getRoleNameValue = (role = {}) =>
   normalizeId(
     role.roleName ??
-      role.RoleName ??
-      role.name ??
-      role.Name ??
-      ""
+    role.RoleName ??
+    role.name ??
+    role.Name ??
+    ""
+  );
+
+const getEmployeeNameValue = (employee) =>
+  normalizeId(
+    (employee ?? {}).employeeName ??
+    (employee ?? {}).EmployeeName ??
+    (employee ?? {}).name ??
+    (employee ?? {}).Name ??
+    (employee ?? {}).fullName ??
+    (employee ?? {}).FullName ??
+    ""
   );
 
 function ScreenPermissions() {
@@ -119,11 +135,28 @@ function ScreenPermissions() {
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const locationStateRoleId = normalizeId(location.state?.roleId);
   const locationStateRoleName = normalizeId(location.state?.roleName);
+  const locationStateEmployee = location.state?.employee ?? location.state?.user ?? null;
+  const locationStateEmployeeId = normalizeId(
+    locationStateEmployee?.employeeId ??
+    locationStateEmployee?.EmployeeId ??
+    locationStateEmployee?.employee_Id ??
+    locationStateEmployee?.Employee_Id ??
+    location.state?.employeeId ??
+    location.state?.EmployeeId ??
+    location.state?.id ??
+    location.state?.Id ??
+    ""
+  );
   const queryRoleId = normalizeId(searchParams.get("roleId") || searchParams.get("id"));
   const queryRoleName = normalizeId(searchParams.get("roleName"));
+  const queryEmployeeId = normalizeId(searchParams.get("employeeId") || searchParams.get("userId"));
   const initialRoleId = locationStateRoleId || queryRoleId;
   const initialRoleName =
     locationStateRoleName || queryRoleName || safeDecodeURIComponent(routeRoleName);
+  const initialEmployeeId = locationStateEmployeeId || queryEmployeeId;
+  const permissionMode = initialEmployeeId ? "user" : "role";
+  const locationStateEmployeeName =
+    permissionMode === "user" ? getEmployeeNameValue(locationStateEmployee) : "";
 
   const [selectedRole, setSelectedRole] = useState(() => ({
     roleId: initialRoleId,
@@ -148,6 +181,21 @@ function ScreenPermissions() {
   const hasPermissions = permissionRows.length > 0;
   const currentRoleId = selectedRole.roleId || initialRoleId;
   const currentRoleName = getRoleNameValue(selectedRole) || initialRoleName || "";
+  const selectedEmployeeLabel = useMemo(() => {
+    if (permissionMode !== "user") {
+      return "";
+    }
+
+    if (locationStateEmployeeName) {
+      return locationStateEmployeeName;
+    }
+
+    if (initialEmployeeId) {
+      return `Employee ${initialEmployeeId}`;
+    }
+
+    return "the selected employee";
+  }, [initialEmployeeId, locationStateEmployeeName, permissionMode]);
   const selectedRoleLabel = useMemo(() => {
     if (currentRoleName) {
       return currentRoleName;
@@ -163,6 +211,12 @@ function ScreenPermissions() {
 
     return "the selected role";
   }, [currentRoleId, currentRoleName, initialRoleName]);
+  const selectedPermissionLabel =
+    permissionMode === "user" ? selectedEmployeeLabel : selectedRoleLabel;
+  const selectedPermissionId =
+    permissionMode === "user" ? initialEmployeeId : currentRoleId;
+  const selectedPermissionTitle =
+    permissionMode === "user" ? "User Permissions" : "Role Permissions";
   const isBusy = loading || saving;
 
   const resolveRoleSelection = useCallback(async () => {
@@ -290,12 +344,186 @@ function ScreenPermissions() {
     [initialRoleId, initialRoleName]
   );
 
+  const loadAllModulesForUser = useCallback(
+    async (employeeId, { roleName = "", roleId = "" } = {}) => {
+      const normalizedEmployeeId = normalizeId(employeeId);
+
+      if (!normalizedEmployeeId) {
+        return [];
+      }
+
+      try {
+        // Get ALL modules available for the selected role
+        const roleSnapshot = roleName
+          ? await fetchRolePermissionsByRoleName(normalizeId(roleName))
+          : { permissions: [] };
+
+        const allModules = sortPermissions(
+          (roleSnapshot.permissions || []).map((permission) =>
+            normalizeScreenPermissionRow(permission, {
+              strictAccess: false,
+            })
+          )
+        );
+
+        // Get permissions specifically saved for this employee
+        const userSnapshot =
+          await fetchUserPermissionsByEmployeeId(normalizedEmployeeId);
+
+        const userPermissions = userSnapshot.permissions || [];
+
+        // Merge user permissions into ALL modules
+        const userPermissionMap = new Map(
+          userPermissions.map((permission) => [
+            normalizeId(permission.moduleId ?? permission.ModuleId),
+            permission,
+          ])
+        );
+
+        const mergedPermissions = allModules.map((module) => {
+          const moduleId = normalizeId(
+            module.moduleId ?? module.ModuleId
+          );
+
+          const userPermission = userPermissionMap.get(moduleId);
+
+          if (!userPermission) {
+            return normalizeScreenPermissionRow(
+              {
+                ...module,
+                canView: false,
+                canAdd: false,
+                canEdit: false,
+                canDelete: false,
+                canAccess: false,
+              },
+              { strictAccess: true }
+            );
+          }
+
+          return normalizeScreenPermissionRow(
+            {
+              ...module,
+              ...userPermission,
+            },
+            { strictAccess: true }
+          );
+        });
+
+        return sortPermissions(mergedPermissions);
+      } catch (error) {
+        console.error("Load All User Modules Error:", error);
+        throw error;
+      }
+    },
+    []
+  );
+
+  const loadPermissionsForEmployee = useCallback(
+    async (
+      employeeId,
+      { employeeName = "", roleId = "", roleName = "", clearCurrent = false } = {}
+    ) => {
+      const normalizedEmployeeId = normalizeId(employeeId);
+
+      if (!normalizedEmployeeId) {
+        if (clearCurrent) {
+          setPermissions([]);
+        }
+
+        setLoading(false);
+        return [];
+      }
+
+      const requestId = ++permissionRequestIdRef.current;
+
+      if (clearCurrent) {
+        setPermissions([]);
+      }
+
+      setLoading(true);
+      setError("");
+
+      try {
+        const nextPermissions = await loadAllModulesForUser(
+          normalizedEmployeeId,
+          {
+            roleId,
+            roleName,
+          }
+        );
+
+        if (requestId !== permissionRequestIdRef.current) {
+          return nextPermissions;
+        }
+
+        console.log("Merged User Permissions:", nextPermissions);
+
+        setPermissions(nextPermissions);
+        setSelectedRole((prev) => ({
+          roleId: roleId || prev.roleId || initialRoleId || "",
+          roleName:
+            roleName ||
+            prev.roleName ||
+            initialRoleName ||
+            "",
+        }));
+
+        console.log("Final mapped React state", nextPermissions);
+
+        return nextPermissions;
+      } catch (requestError) {
+        if (requestId !== permissionRequestIdRef.current) {
+          return [];
+        }
+
+        console.error("Permission API Error:", requestError);
+        const message = getUserPermissionErrorMessage(
+          requestError,
+          "Unable to load permissions."
+        );
+        setError(message);
+        toastError(message);
+
+        return [];
+      } finally {
+        if (requestId === permissionRequestIdRef.current) {
+          setLoading(false);
+        }
+      }
+    },
+    [initialRoleId, initialRoleName, loadAllModulesForUser]
+  );
+
   useEffect(() => {
     let isMounted = true;
 
     const bootstrap = async () => {
       setLoading(true);
       setError("");
+
+      if (permissionMode === "user") {
+        if (!initialEmployeeId) {
+          setPermissions([]);
+          setError("Unable to determine the selected employee.");
+          setLoading(false);
+          return;
+        }
+
+        setSelectedRole((prev) => ({
+          roleId: initialRoleId || prev.roleId || "",
+          roleName: initialRoleName || prev.roleName || "",
+        }));
+
+        await loadPermissionsForEmployee(initialEmployeeId, {
+          employeeName: locationStateEmployeeName,
+          roleId: initialRoleId,
+          roleName: initialRoleName,
+          clearCurrent: true,
+        });
+
+        return;
+      }
 
       const resolvedRole = await resolveRoleSelection();
 
@@ -330,7 +558,16 @@ function ScreenPermissions() {
       isMounted = false;
       permissionRequestIdRef.current += 1;
     };
-  }, [initialRoleId, initialRoleName, loadPermissionsForRole, resolveRoleSelection]);
+  }, [
+    initialEmployeeId,
+    initialRoleId,
+    initialRoleName,
+    locationStateEmployeeName,
+    loadPermissionsForEmployee,
+    loadPermissionsForRole,
+    permissionMode,
+    resolveRoleSelection,
+  ]);
 
   const handlePermissionChange = (moduleId, field, value) => {
     const normalizedModuleId = normalizeId(moduleId);
@@ -402,6 +639,21 @@ function ScreenPermissions() {
   };
 
   const handleRefresh = () => {
+    if (permissionMode === "user") {
+      if (!initialEmployeeId) {
+        return;
+      }
+
+      void loadPermissionsForEmployee(initialEmployeeId, {
+        employeeName: locationStateEmployeeName,
+        roleId: initialRoleId,
+        roleName: initialRoleName,
+        clearCurrent: false,
+      });
+
+      return;
+    }
+
     if (!currentRoleName) {
       return;
     }
@@ -413,6 +665,53 @@ function ScreenPermissions() {
   };
 
   const handleSave = async () => {
+    const currentPermissions = sortPermissions(permissionsRef.current).map((permission) =>
+      normalizeScreenPermissionRow(permission, { strictAccess: true })
+    );
+
+    if (permissionMode === "user") {
+      if (!initialEmployeeId) {
+        const message = "Please select an employee before saving permissions.";
+        setError(message);
+        toastError(message);
+        return;
+      }
+
+      setSaving(true);
+      setError("");
+
+      try {
+        const saveResponse = await saveUserPermissions({
+          employeeId: initialEmployeeId,
+          permissions: currentPermissions,
+        });
+
+        console.log("API Response:", saveResponse);
+
+        toastSuccess("User permissions saved successfully.");
+
+        await loadPermissionsForEmployee(initialEmployeeId, {
+          employeeName: locationStateEmployeeName,
+          roleId: initialRoleId,
+          roleName: initialRoleName,
+          clearCurrent: false,
+        });
+      } catch (requestError) {
+        console.error("Save Error", requestError.response?.data);
+
+        const message = getUserPermissionErrorMessage(
+          requestError,
+          "Unable to save permissions."
+        );
+        setError(message);
+        toastError(message);
+      } finally {
+        setSaving(false);
+      }
+
+      return;
+    }
+
     if (!currentRoleName) {
       const message = "Please select a role before saving permissions.";
       setError(message);
@@ -424,7 +723,6 @@ function ScreenPermissions() {
     setError("");
 
     try {
-      const currentPermissions = permissions;
       const payload = buildRolePermissionSavePayload({
         roleName: currentRoleName,
         permissions: currentPermissions,
@@ -478,22 +776,41 @@ function ScreenPermissions() {
       <div className="permission-top">
         <div className="permission-employee-header">
           <div>
-            <h2>Role Permissions</h2>
+            <h2>{selectedPermissionTitle}</h2>
             <p>
-              Configure module access for {selectedRoleLabel}
-              {currentRoleId ? ` (ID: ${currentRoleId})` : ""}.
+              Configure module access for {selectedPermissionLabel}
+              {selectedPermissionId ? ` (ID: ${selectedPermissionId})` : ""}.
             </p>
           </div>
 
           <dl>
-            <div>
-              <dt>Role Name</dt>
-              <dd>{selectedRoleLabel}</dd>
-            </div>
-            <div>
-              <dt>Role ID</dt>
-              <dd>{currentRoleId || "Pending"}</dd>
-            </div>
+            {permissionMode === "user" ? (
+              <>
+                <div>
+                  <dt>Employee Name</dt>
+                  <dd>{selectedEmployeeLabel}</dd>
+                </div>
+                <div>
+                  <dt>Employee ID</dt>
+                  <dd>{initialEmployeeId || "Pending"}</dd>
+                </div>
+                <div>
+                  <dt>Role Name</dt>
+                  <dd>{currentRoleName || initialRoleName || "Pending"}</dd>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <dt>Role Name</dt>
+                  <dd>{selectedRoleLabel}</dd>
+                </div>
+                <div>
+                  <dt>Role ID</dt>
+                  <dd>{currentRoleId || "Pending"}</dd>
+                </div>
+              </>
+            )}
           </dl>
         </div>
 
@@ -518,9 +835,19 @@ function ScreenPermissions() {
             className="select-all-btn"
             type="button"
             onClick={handleSave}
-            disabled={isBusy || !currentRoleName}
+            disabled={
+              isBusy ||
+              (permissionMode === "user"
+                ? !initialEmployeeId
+                : !currentRoleName)
+            }
           >
-            <FaSave /> {saving ? "Saving..." : "Save Permissions"}
+            <FaSave />
+            {saving
+              ? "Saving..."
+              : permissionMode === "user"
+                ? "Save User Permissions"
+                : "Save Permissions"}
           </button>
         </div>
       </div>
@@ -551,7 +878,10 @@ function ScreenPermissions() {
             type="button"
             className="sidebar-status-retry"
             onClick={handleRefresh}
-            disabled={!currentRoleName || isBusy}
+            disabled={
+              isBusy ||
+              (permissionMode === "user" ? !initialEmployeeId : !currentRoleName)
+            }
           >
             Retry
           </button>
@@ -604,9 +934,8 @@ function ScreenPermissions() {
                         ))}
                         <td className="permission-access-col">
                           <label
-                            className={`permission-switch ${
-                              permission.canAccess === true ? "active" : ""
-                            }`}
+                            className={`permission-switch ${permission.canAccess === true ? "active" : ""
+                              }`}
                           >
                             <input
                               type="checkbox"

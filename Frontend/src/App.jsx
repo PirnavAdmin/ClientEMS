@@ -1,7 +1,7 @@
 import React, { lazy, memo, Suspense, useEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import "./App.css";
-import { ToastContainer } from "react-toastify";
+import { usePermissionScope } from "./context/usePermissionScope";
 import PermissionRoute from "./routes/PermissionRoute";
 import ProtectedRoute from "./routes/ProtectedRoute";
 
@@ -9,9 +9,10 @@ import GlobalUiController from "./components/GlobalUiController";
 import { AdminPermissionProvider } from "./context/AdminPermissionContext";
 import { EmployeePermissionProvider } from "./context/EmployeePermissionContext";
 import "./components/common/toast/toast.css";
-import { toastTransition } from "./components/common/toast/toastService";
+import "react-toastify/dist/ReactToastify.css";
+import GlobalToastContainer from "./components/common/toast/GlobalToastContainer";
 import { getStoredToken } from "./utils/authStorage";
-import { hasEmployeeIdClaim, hasRole } from "./utils/authorization";
+import { hasRole } from "./utils/authorization";
 import {
   clearSessionTimer,
   handleAutoLogout,
@@ -118,19 +119,9 @@ const OfferLetters = lazyRoute("offer-letters", () => import("./OfferLetters/Off
 const Reports = lazyRoute("reports", () => import("./Reports/Reports"));
 const SettingsPage = lazyRoute("settings", () => import("./Pages/Settings/SettingsPage"));
 const HrmsSettingsPage = lazyRoute("hrms-settings", () => import("./Pages/Settings/HrmsSettingsPage"));
-const TaxManagementSettingsPage = lazyRoute("tax-management-settings", () =>
-  import("./Pages/Settings/HrmsSettingsPage").then((module) => ({
-    default: module.TaxManagementSettingsPage,
-  }))
-);
 const TemplateSettingsPage = lazyRoute("template-settings", () =>
   import("./Pages/Settings/HrmsSettingsPage").then((module) => ({
     default: module.TemplateSettingsPage,
-  }))
-);
-const WorkflowSettingsPage = lazyRoute("workflow-settings", () =>
-  import("./Pages/Settings/HrmsSettingsPage").then((module) => ({
-    default: module.WorkflowSettingsPage,
   }))
 );
 const AccessDenied = lazyRoute("access-denied", () => import("./Pages/AccessDenied"));
@@ -222,31 +213,19 @@ const AdminSettingsRoute = ({ children }) => (
   <PermissionRoute module="Settings">{children}</PermissionRoute>
 );
 
+const ProtectedMainLayout = () => {
+  const permissionScope = usePermissionScope();
+
+  return <MainLayout permissionScope={permissionScope} />;
+};
+
 /* ================= APP ================= */
 
 function App() {
   return (
     <AdminPermissionProvider>
       <EmployeePermissionProvider>
-        <ToastContainer
-          autoClose={4000}
-          closeButton={false}
-          closeOnClick={true}
-          containerClassName="ems-toast-container"
-          draggable
-          draggablePercent={60}
-          hideProgressBar={false}
-          limit={1}
-          newestOnTop={true}
-          pauseOnFocusLoss={false}
-          pauseOnHover={true}
-          position="top-right"
-          theme="dark"
-          toastClassName={({ type }) =>
-            `ems-toast ems-toast--${type || "info"}`
-          }
-          transition={toastTransition}
-        />
+        <GlobalToastContainer />
         <GlobalUiController />
         <SessionController />
         <Suspense fallback={<RouteFallback />}>
@@ -264,540 +243,491 @@ function App() {
             <Route
               element={
                 <ProtectedRoute>
-                  <MainLayout />
+                  <ProtectedMainLayout />
                 </ProtectedRoute>
               }
             >
-            {/* DASHBOARD */}
-            <Route path="/onboarding" element={<Navigate to="/onboarding/details" replace />} />
-            <Route path="/onboarding/details" element={<OnboardingDetails />} />
+              {/* DASHBOARD */}
+              <Route path="/onboarding" element={<Navigate to="/onboarding/details" replace />} />
+              <Route path="/onboarding/details" element={<OnboardingDetails />} />
 
-            {/* DASHBOARD */}
-            <Route
-              path="/dashboard"
-              element={
-                <PermissionRoute module="Dashboard">
-                  <Dashboard />
-                </PermissionRoute>
-              }
-            />
+              {/* DASHBOARD */}
+              <Route
+                path="/dashboard"
+                element={
+                  <PermissionRoute module="Dashboard">
+                    <Dashboard />
+                  </PermissionRoute>
+                }
+              />
 
-            {/* USER DASHBOARD */}
-            <Route
-              path="/user-dashboard"
-              element={<Navigate to="/dashboard" replace />}
-            />
+              {/* USER DASHBOARD */}
+              <Route
+                path="/user-dashboard"
+                element={<Navigate to="/dashboard" replace />}
+              />
 
-            <Route
-              path="/super-admin/dashboard"
-              element={
-                <PermissionRoute module="Dashboard">
-                  <Dashboard />
-                </PermissionRoute>
-              }
-            />
+              <Route
+                path="/super-admin/dashboard"
+                element={
+                  <PermissionRoute module="Dashboard">
+                    <Dashboard />
+                  </PermissionRoute>
+                }
+              />
 
-            <Route
-              path="/admin/dashboard"
-              element={
-                <PermissionRoute module="Dashboard">
-                  <Dashboard />
-                </PermissionRoute>
-              }
-            />
+              <Route
+                path="/admin/dashboard"
+                element={
+                  <PermissionRoute module="Dashboard">
+                    <Dashboard />
+                  </PermissionRoute>
+                }
+              />
 
-            <Route
-              path="/employee/dashboard"
-              element={
-                <PermissionRoute module="Dashboard">
-                  <Dashboard />
-                </PermissionRoute>
-              }
-            />
+              <Route
+                path="/employee/dashboard"
+                element={
+                  <PermissionRoute module="Dashboard">
+                    <Dashboard />
+                  </PermissionRoute>
+                }
+              />
 
-            <Route
-              path="/super-admin/administration"
-              element={<Navigate to="/super-admin/administration/admins" replace />}
-            />
-            <Route
-              path="/super-admin/administration/admins"
-              element={
-                <PermissionRoute module="Admin Management">
-                  <SuperAdminClients />
-                </PermissionRoute>
-              }
-            />
-            <Route
-              path="/super-admin/administration/subscriptions"
-              element={
-                <PermissionRoute module="Subscription Management">
-                  <Subscriptions />
-                </PermissionRoute>
-              }
-            />
-            <Route
-              path="/super-admin/administration/permissions"
-              element={
-                <PermissionRoute module="Permissions">
-                  <SuperAdminPermissions />
-                </PermissionRoute>
-              }
-            />
-            <Route
-              path="/admin-management"
-              element={
-                <PermissionRoute module="Admin Management">
-                  <SuperAdminClients />
-                </PermissionRoute>
-              }
-            />
-            <Route
-              path="/subscription-management"
-              element={
-                <PermissionRoute module="Subscription Management">
-                  <Subscriptions />
-                </PermissionRoute>
-              }
-            />
-            <Route
-              path="/permissions"
-              element={
-                <PermissionRoute module="Permissions">
-                  <SuperAdminPermissions />
-                </PermissionRoute>
-              }
-            />
-            <Route
-              path="/super-admin/*"
-              element={<Navigate to="/super-admin/dashboard" replace />}
-            />
+              <Route
+                path="/super-admin/administration"
+                element={<Navigate to="/super-admin/administration/admins" replace />}
+              />
+              <Route
+                path="/super-admin/administration/admins"
+                element={
+                  <PermissionRoute module="Admin Management">
+                    <SuperAdminClients />
+                  </PermissionRoute>
+                }
+              />
+              <Route
+                path="/super-admin/administration/subscriptions"
+                element={
+                  <PermissionRoute module="Subscription Management">
+                    <Subscriptions />
+                  </PermissionRoute>
+                }
+              />
+              <Route
+                path="/super-admin/administration/permissions"
+                element={
+                  <PermissionRoute module="Permissions">
+                    <SuperAdminPermissions />
+                  </PermissionRoute>
+                }
+              />
+              <Route
+                path="/admin-management"
+                element={
+                  <PermissionRoute module="Admin Management">
+                    <SuperAdminClients />
+                  </PermissionRoute>
+                }
+              />
+              <Route
+                path="/subscription-management"
+                element={
+                  <PermissionRoute module="Subscription Management">
+                    <Subscriptions />
+                  </PermissionRoute>
+                }
+              />
+              <Route
+                path="/permissions"
+                element={
+                  <PermissionRoute module="Permissions">
+                    <SuperAdminPermissions />
+                  </PermissionRoute>
+                }
+              />
+              <Route
+                path="/super-admin/*"
+                element={<Navigate to="/super-admin/dashboard" replace />}
+              />
 
-            {/* EMPLOYEES */}
-            <Route
-              path="/employees"
-              element={
-                <PermissionRoute module="Employees">
-                  <EmployeeList />
-                </PermissionRoute>
-              }
-            />
+              {/* EMPLOYEES */}
+              <Route
+                path="/employees"
+                element={
+                  <PermissionRoute module="Employees">
+                    <EmployeeList />
+                  </PermissionRoute>
+                }
+              />
 
-            <Route
-              path="/employee-permissions/:id/:roleName"
-              element={
-                <PermissionRoute module="Screen Permissions">
-                  <ScreenPermissions />
-                </PermissionRoute>
-              }
-            />
+              <Route
+                path="/employee-permissions/:id/:roleName"
+                element={
+                  <PermissionRoute module="Screen Permissions">
+                    <ScreenPermissions />
+                  </PermissionRoute>
+                }
+              />
 
-            {/* ADD EMPLOYEE ROUTES */}
-            <Route
-              path="/add-employee"
-              element={
-                hasEmployeeIdClaim() && hasRole("user", "employee") ? (
-                  <AddEmployee />
-                ) : (
+              {/* ADD EMPLOYEE ROUTES */}
+              <Route
+                path="/add-employee"
+                element={
+                  hasRole("user", "employee") ? (
+                    <AddEmployee />
+                  ) : (
+                    <PermissionRoute module="Add Employee">
+                      <AddEmployee />
+                    </PermissionRoute>
+                  )
+                }
+              />
+
+              {/* VIEW / EDIT EMPLOYEE FULL DETAIL */}
+              <Route
+                path="/add-employee/:id"
+                element={
                   <PermissionRoute module="Add Employee">
                     <AddEmployee />
                   </PermissionRoute>
-                )
-              }
-            />
+                }
+              />
 
-            {/* VIEW / EDIT EMPLOYEE FULL DETAIL */}
-            <Route
-              path="/add-employee/:id"
-              element={
-                <PermissionRoute module="Add Employee">
-                  <AddEmployee />
-                </PermissionRoute>
-              }
-            />
+              <Route
+                path="/departments"
+                element={
+                  <PermissionRoute module="Departments">
+                    <Departments />
+                  </PermissionRoute>
+                }
+              />
 
-            <Route
-              path="/departments"
-              element={
-                <PermissionRoute module="Departments">
-                  <Departments />
-                </PermissionRoute>
-              }
-            />
+              {/* COMPANY */}
+              <Route
+                path="/company"
+                element={
+                  <PermissionRoute module="Company Details">
+                    <CompanyDetails />
+                  </PermissionRoute>
+                }
+              />
 
-            {/* COMPANY */}
-            <Route
-              path="/company"
-              element={
-                <PermissionRoute module="Company Details">
-                  <CompanyDetails />
-                </PermissionRoute>
-              }
-            />
+              <Route
+                path="/projects"
+                element={
+                  <PermissionRoute module="Projects">
+                    <Projects />
+                  </PermissionRoute>
+                }
+              />
 
-            <Route
-              path="/projects"
-              element={
-                <PermissionRoute module="Projects">
-                  <Projects />
-                </PermissionRoute>
-              }
-            />
+              <Route
+                path="/admin/onboarding"
+                element={
+                  <PermissionRoute module="Onboarding List">
+                    <AdminOnboardingList />
+                  </PermissionRoute>
+                }
+              />
 
-            <Route
-              path="/admin/onboarding"
-              element={
-                <PermissionRoute module="Onboarding List">
-                  <AdminOnboardingList />
-                </PermissionRoute>
-              }
-            />
+              <Route
+                path="/admin/onboarding/:onboardingId"
+                element={
+                  <PermissionRoute module="Onboarding List">
+                    <AdminOnboardingDetails />
+                  </PermissionRoute>
+                }
+              />
 
-            <Route
-              path="/admin/onboarding/:onboardingId"
-              element={
-                <PermissionRoute module="Onboarding List">
-                  <AdminOnboardingDetails />
-                </PermissionRoute>
-              }
-            />
+              <Route
+                path="/roles/:roleName"
+                element={
+                  <PermissionRoute module="Screen Permissions">
+                    <ScreenPermissions />
+                  </PermissionRoute>
+                }
+              />
 
-            <Route
-              path="/roles/:roleName"
-              element={
-                <PermissionRoute module="Screen Permissions">
-                  <ScreenPermissions />
-                </PermissionRoute>
-              }
-            />
+              <Route
+                path="/projects/:projectId"
+                element={
+                  <PermissionRoute module="Projects">
+                    <ProjectDetails />
+                  </PermissionRoute>
+                }
+              />
 
-            <Route
-              path="/projects/:projectId"
-              element={
-                <PermissionRoute module="Projects">
-                  <ProjectDetails />
-                </PermissionRoute>
-              }
-            />
+              <Route
+                path="/holidays"
+                element={
+                  <PermissionRoute module="Holidays">
+                    <Holidays />
+                  </PermissionRoute>
+                }
+              />
 
-            <Route
-              path="/holidays"
-              element={
-                <PermissionRoute module="Holidays">
-                  <Holidays />
-                </PermissionRoute>
-              }
-            />
+              <Route
+                path="/user-holidays"
+                element={
+                  <PermissionRoute module="User Holidays">
+                    <UserHolidays />
+                  </PermissionRoute>
+                }
+              />
 
-            <Route
-              path="/user-holidays"
-              element={
-                <PermissionRoute module="User Holidays">
-                  <UserHolidays />
-                </PermissionRoute>
-              }
-            />
+              {/* MASTERS */}
+              <Route
+                path="/roles"
+                element={
+                  <PermissionRoute module="Roles">
+                    <Roles />
+                  </PermissionRoute>
+                }
+              />
 
-            {/* MASTERS */}
-            <Route
-              path="/roles"
-              element={
-                <PermissionRoute module="Roles">
-                  <Roles />
-                </PermissionRoute>
-              }
-            />
+              <Route
+                path="/assets"
+                element={
+                  <PermissionRoute module="Assets">
+                    <Assets />
+                  </PermissionRoute>
+                }
+              />
 
-            <Route
-              path="/assets"
-              element={
-                <PermissionRoute module="Assets">
-                  <Assets />
-                </PermissionRoute>
-              }
-            />
+              <Route
+                path="/clients"
+                element={
+                  <PermissionRoute module="Clients">
+                    <Clients />
+                  </PermissionRoute>
+                }
+              />
 
-            <Route
-              path="/clients"
-              element={
-                <PermissionRoute module="Clients">
-                  <Clients />
-                </PermissionRoute>
-              }
-            />
+              {/* ATTENDANCE */}
+              <Route
+                path="/attendance"
+                element={
+                  <PermissionRoute module="Attendance">
+                    <Attendance />
+                  </PermissionRoute>
+                }
+              />
 
-            {/* ATTENDANCE */}
-            <Route
-              path="/attendance"
-              element={
-                <PermissionRoute module="Attendance">
-                  <Attendance />
-                </PermissionRoute>
-              }
-            />
+              <Route
+                path="/user-attendance"
+                element={
+                  <PermissionRoute module="User Attendance">
+                    <UserAttendance />
+                  </PermissionRoute>
+                }
+              />
 
-            <Route
-              path="/user-attendance"
-              element={
-                <PermissionRoute module="User Attendance">
-                  <UserAttendance />
-                </PermissionRoute>
-              }
-            />
+              {/* TEAMS */}
+              <Route
+                path="/teams"
+                element={
+                  <PermissionRoute module="Teams">
+                    <Teams />
+                  </PermissionRoute>
+                }
+              />
+              <Route
+                path="/teams/:teamId"
+                element={
+                  <PermissionRoute module="Teams">
+                    <TeamDetails />
+                  </PermissionRoute>
+                }
+              />
 
-            {/* TEAMS */}
-            <Route
-              path="/teams"
-              element={
-                <PermissionRoute module="Teams">
-                  <Teams />
-                </PermissionRoute>
-              }
-            />
-            <Route
-              path="/teams/:teamId"
-              element={
-                <PermissionRoute module="Teams">
-                  <TeamDetails />
-                </PermissionRoute>
-              }
-            />
+              {/* LEAVE */}
+              <Route
+                path="/leave-management"
+                element={
+                  <PermissionRoute module="Leave Management">
+                    <LeaveManagement />
+                  </PermissionRoute>
+                }
+              />
 
-            {/* LEAVE */}
-            <Route
-              path="/leave-management"
-              element={
-                <PermissionRoute module="Leave Management">
-                  <LeaveManagement />
-                </PermissionRoute>
-              }
-            />
+              <Route
+                path="/user-leave-management"
+                element={
+                  <PermissionRoute module="User Leave Management">
+                    <UserLeaveManagement />
+                  </PermissionRoute>
+                }
+              />
 
-            <Route
-              path="/user-leave-management"
-              element={
-                <PermissionRoute module="User Leave Management">
-                  <UserLeaveManagement />
-                </PermissionRoute>
-              }
-            />
+              {/* TICKETS */}
+              <Route
+                path="/admin/tickets"
+                element={
+                  <PermissionRoute module="All Tickets">
+                    <TicketManagement />
+                  </PermissionRoute>
+                }
+              />
 
-            {/* TICKETS */}
-            <Route
-              path="/admin/tickets"
-              element={
-                <PermissionRoute module="All Tickets">
-                  <TicketManagement />
-                </PermissionRoute>
-              }
-            />
+              <Route
+                path="/admin/tickets/:ticketId"
+                element={
+                  <PermissionRoute module="All Tickets">
+                    <TicketDetails />
+                  </PermissionRoute>
+                }
+              />
 
-            <Route
-              path="/admin/tickets/:ticketId"
-              element={
-                <PermissionRoute module="All Tickets">
-                  <TicketDetails />
-                </PermissionRoute>
-              }
-            />
+              <Route
+                path="/admin/tickets/edit/:ticketId"
+                element={
+                  <PermissionRoute module="All Tickets">
+                    <EditTicket />
+                  </PermissionRoute>
+                }
+              />
 
-            <Route
-              path="/admin/tickets/edit/:ticketId"
-              element={
-                <PermissionRoute module="All Tickets">
-                  <EditTicket />
-                </PermissionRoute>
-              }
-            />
+              <Route
+                path="/employee/my-tickets"
+                element={
+                  <PermissionRoute module="My Tickets">
+                    <MyTickets />
+                  </PermissionRoute>
+                }
+              />
 
-            <Route
-              path="/employee/my-tickets"
-              element={
-                <PermissionRoute module="My Tickets">
-                  <MyTickets />
-                </PermissionRoute>
-              }
-            />
+              <Route
+                path="/employee/my-tickets/:ticketId"
+                element={
+                  <PermissionRoute module="My Tickets">
+                    <MyTickets />
+                  </PermissionRoute>
+                }
+              />
 
-            <Route
-              path="/employee/my-tickets/:ticketId"
-              element={
-                <PermissionRoute module="My Tickets">
-                  <MyTickets />
-                </PermissionRoute>
-              }
-            />
+              <Route
+                path="/employee/my-tickets/edit/:ticketId"
+                element={
+                  <PermissionRoute module="My Tickets">
+                    <EditTicket />
+                  </PermissionRoute>
+                }
+              />
 
-            <Route
-              path="/employee/my-tickets/edit/:ticketId"
-              element={
-                <PermissionRoute module="My Tickets">
-                  <EditTicket />
-                </PermissionRoute>
-              }
-            />
+              {/* PAYROLL */}
+              <Route
+                path="/payroll"
+                element={
+                  <PermissionRoute module="Payroll">
+                    <Payroll />
+                  </PermissionRoute>
+                }
+              />
 
-            {/* PAYROLL */}
-            <Route
-              path="/payroll"
-              element={
-                <PermissionRoute module="Payroll">
-                  <Payroll />
-                </PermissionRoute>
-              }
-            />
+              <Route
+                path="/user-payslip"
+                element={
+                  <PermissionRoute module="User Payslip">
+                    <UserPayslip />
+                  </PermissionRoute>
+                }
+              />
 
-            <Route
-              path="/user-payslip"
-              element={
-                <PermissionRoute module="User Payslip">
-                  <UserPayslip />
-                </PermissionRoute>
-              }
-            />
+              {/* OTHER */}
+              <Route
+                path="/notifications"
+                element={
+                  <PermissionRoute module="Notifications">
+                    <Notifications />
+                  </PermissionRoute>
+                }
+              />
 
-            {/* OTHER */}
-            <Route
-              path="/notifications"
-              element={
-                <PermissionRoute module="Notifications">
-                  <Notifications />
-                </PermissionRoute>
-              }
-            />
+              <Route
+                path="/user-notifications"
+                element={
+                  <PermissionRoute module="User Notifications">
+                    <UserNotifications />
+                  </PermissionRoute>
+                }
+              />
 
-            <Route
-              path="/user-notifications"
-              element={
-                <PermissionRoute module="User Notifications">
-                  <UserNotifications />
-                </PermissionRoute>
-              }
-            />
+              <Route
+                path="/offer-letters"
+                element={
+                  <PermissionRoute module="Offer Letters">
+                    <OfferLetters />
+                  </PermissionRoute>
+                }
+              />
 
-            <Route
-              path="/offer-letters"
-              element={
-                <PermissionRoute module="Offer Letters">
-                  <OfferLetters />
-                </PermissionRoute>
-              }
-            />
+              <Route
+                path="/reports"
+                element={
+                  <PermissionRoute module="Reports">
+                    <Reports />
+                  </PermissionRoute>
+                }
+              />
 
-            <Route
-              path="/reports"
-              element={
-                <PermissionRoute module="Reports">
-                  <Reports />
-                </PermissionRoute>
-              }
-            />
-
-            <Route
-              path="/settings"
-              element={
-                <AdminSettingsRoute>
-                  <SettingsPage />
-                </AdminSettingsRoute>
-              }
-            />
-
-            <Route
-              path="/settings/appraisal"
-              element={
-                <AdminSettingsRoute>
-                  <HrmsSettingsPage moduleKey="appraisal" />
-                </AdminSettingsRoute>
-              }
-            />
-            <Route
-              path="/settings/employee-goals"
-              element={
-                <AdminSettingsRoute>
-                  <HrmsSettingsPage moduleKey="employeeGoals" />
-                </AdminSettingsRoute>
-              }
-            />
-            <Route
-              path="/settings/goal-review"
-              element={
-                <AdminSettingsRoute>
-                  <HrmsSettingsPage moduleKey="goalReview" />
-                </AdminSettingsRoute>
-              }
-            />
-            <Route
-              path="/settings/performance-cycle"
-              element={
-                <AdminSettingsRoute>
-                  <HrmsSettingsPage moduleKey="performanceCycle" />
-                </AdminSettingsRoute>
-              }
-            />
-            <Route
-              path="/settings/resignation"
-              element={
-                <AdminSettingsRoute>
-                  <HrmsSettingsPage moduleKey="resignation" />
-                </AdminSettingsRoute>
-              }
-            />
-            <Route
-              path="/settings/employee-clearance"
-              element={
-                <AdminSettingsRoute>
-                  <HrmsSettingsPage moduleKey="employeeClearance" />
-                </AdminSettingsRoute>
-              }
-            />
-            <Route
-              path="/settings/exit-interview"
-              element={
-                <AdminSettingsRoute>
-                  <HrmsSettingsPage moduleKey="exitInterview" />
-                </AdminSettingsRoute>
-              }
-            />
-            <Route
-              path="/settings/full-final-settlement"
-              element={
-                <AdminSettingsRoute>
-                  <HrmsSettingsPage moduleKey="fullFinalSettlement" />
-                </AdminSettingsRoute>
-              }
-            />
-            <Route
-              path="/settings/shift"
-              element={
-                <AdminSettingsRoute>
-                  <HrmsSettingsPage shiftMode />
-                </AdminSettingsRoute>
-              }
-            />
-            <Route
-              path="/settings/tax-management"
-              element={
-                <AdminSettingsRoute>
-                  <TaxManagementSettingsPage />
-                </AdminSettingsRoute>
-              }
-            />
-            <Route
-              path="/settings/templates"
-              element={
-                <AdminSettingsRoute>
-                  <TemplateSettingsPage />
-                </AdminSettingsRoute>
-              }
-            />
-            <Route
-              path="/settings/workflow"
-              element={
-                <AdminSettingsRoute>
-                  <WorkflowSettingsPage />
-                </AdminSettingsRoute>
-              }
-            />
-          </Route>
+              <Route
+                path="/settings"
+                element={
+                  <AdminSettingsRoute>
+                    <SettingsPage />
+                  </AdminSettingsRoute>
+                }
+              />
+              <Route
+                path="/settings/resignation"
+                element={
+                  <AdminSettingsRoute>
+                    <HrmsSettingsPage moduleKey="resignation" />
+                  </AdminSettingsRoute>
+                }
+              />
+              <Route
+                path="/settings/employee-clearance"
+                element={
+                  <AdminSettingsRoute>
+                    <HrmsSettingsPage moduleKey="employeeClearance" />
+                  </AdminSettingsRoute>
+                }
+              />
+              <Route
+                path="/settings/exit-interview"
+                element={
+                  <AdminSettingsRoute>
+                    <HrmsSettingsPage moduleKey="exitInterview" />
+                  </AdminSettingsRoute>
+                }
+              />
+              <Route
+                path="/settings/full-final-settlement"
+                element={
+                  <AdminSettingsRoute>
+                    <HrmsSettingsPage moduleKey="fullFinalSettlement" />
+                  </AdminSettingsRoute>
+                }
+              />
+              <Route
+                path="/settings/shift"
+                element={
+                  <AdminSettingsRoute>
+                    <HrmsSettingsPage shiftMode />
+                  </AdminSettingsRoute>
+                }
+              />
+              <Route
+                path="/settings/templates"
+                element={
+                  <AdminSettingsRoute>
+                    <TemplateSettingsPage />
+                  </AdminSettingsRoute>
+                }
+              />
+            </Route>
 
           </Routes>
         </Suspense>

@@ -55,144 +55,13 @@ const approvalOptions = [
 ];
 
 export const standaloneSettingsModules = {
-  appraisal: {
-    route: "/settings/appraisal",
-    title: "Appraisal Settings",
-    category: "Performance Management",
-    moduleName: "Appraisal",
-    description: "Manage appraisal cycles, scores, and review workflows.",
-    api: {
-      list: API_ENDPOINTS.appraisal.list,
-      create: API_ENDPOINTS.appraisal.create,
-      get: API_ENDPOINTS.appraisal.byEmployee,
-      delete: API_ENDPOINTS.appraisal.delete,
-    },
-    idKey: "id",
-    columns: [
-      { key: "employeeId", label: "Employee" },
-      { key: "cycleId", label: "Cycle" },
-      { key: "rating", label: "Rating" },
-      ...baseAuditColumns,
-    ],
-    formFields: [
-      text("employeeId", "Employee", { required: true }),
-      text("cycleId", "Performance Cycle", { required: true }),
-      number("rating", "Rating"),
-      textarea("comments", "Comments"),
-    ],
-    searchFields: ["employeeId", "employeeName", "cycleId", "status", "rating"],
-    workflowButtons: [
-      {
-        key: "managerReview",
-        label: "Manager Review",
-        endpoint: API_ENDPOINTS.appraisal.managerReview,
-        permission: "workflow",
-        fields: [
-          select("status", "Status", approvalOptions, { required: true }),
-          textarea("comments", "Comments"),
-        ],
-      },
-      {
-        key: "hrReview",
-        label: "HR Review",
-        endpoint: API_ENDPOINTS.appraisal.hrReview,
-        permission: "workflow",
-        fields: [
-          select("status", "Status", approvalOptions, { required: true }),
-          textarea("comments", "Comments"),
-        ],
-      },
-    ],
-  },
-  employeeGoals: {
-    route: "/settings/employee-goals",
-    title: "Employee Goal Settings",
-    category: "Performance Management",
-    moduleName: "Employee Goal",
-    description: "Create and update employee goals.",
-    api: {
-      list: API_ENDPOINTS.employeeGoal.list,
-      create: API_ENDPOINTS.employeeGoal.create,
-      get: API_ENDPOINTS.employeeGoal.byEmployee,
-      update: API_ENDPOINTS.employeeGoal.update,
-      delete: API_ENDPOINTS.employeeGoal.delete,
-    },
-    idKey: "id",
-    columns: [
-      { key: "employeeId", label: "Employee" },
-      { key: "goalTitle", label: "Goal" },
-      { key: "targetDate", label: "Target Date" },
-      ...baseAuditColumns,
-    ],
-    formFields: [
-      text("employeeId", "Employee", { required: true }),
-      text("goalTitle", "Goal Title", { required: true }),
-      date("targetDate", "Target Date"),
-      textarea("description", "Description"),
-    ],
-    searchFields: ["employeeId", "employeeName", "goalTitle", "status"],
-  },
-  goalReview: {
-    route: "/settings/goal-review",
-    title: "Goal Review Settings",
-    category: "Performance Management",
-    moduleName: "Goal Review",
-    description: "Track goal review results and feedback.",
-    api: {
-      list: API_ENDPOINTS.goalReview.list,
-      create: API_ENDPOINTS.goalReview.create,
-      update: API_ENDPOINTS.goalReview.update,
-      delete: API_ENDPOINTS.goalReview.delete,
-    },
-    idKey: "id",
-    columns: [
-      { key: "goalId", label: "Goal" },
-      { key: "reviewerId", label: "Reviewer" },
-      { key: "rating", label: "Rating" },
-      ...baseAuditColumns,
-    ],
-    formFields: [
-      text("goalId", "Goal", { required: true }),
-      text("reviewerId", "Reviewer", { required: true }),
-      number("rating", "Rating"),
-      textarea("feedback", "Feedback"),
-    ],
-    searchFields: ["goalId", "reviewerId", "rating", "status"],
-  },
-  performanceCycle: {
-    route: "/settings/performance-cycle",
-    title: "Performance Cycle Settings",
-    category: "Performance Management",
-    moduleName: "Performance Cycle",
-    description: "Configure performance cycles and review periods.",
-    api: {
-      list: API_ENDPOINTS.performanceCycle.list,
-      create: API_ENDPOINTS.performanceCycle.create,
-      get: API_ENDPOINTS.performanceCycle.byId,
-      update: API_ENDPOINTS.performanceCycle.update,
-      delete: API_ENDPOINTS.performanceCycle.delete,
-    },
-    idKey: "id",
-    columns: [
-      { key: "cycleName", label: "Cycle Name" },
-      { key: "startDate", label: "Start Date" },
-      { key: "endDate", label: "End Date" },
-      ...baseAuditColumns,
-    ],
-    formFields: [
-      text("cycleName", "Cycle Name", { required: true }),
-      date("startDate", "Start Date", { required: true }),
-      date("endDate", "End Date", { required: true }),
-      textarea("description", "Description"),
-    ],
-    searchFields: ["cycleName", "status", "startDate", "endDate"],
-  },
   resignation: {
     route: "/settings/resignation",
     title: "Employee Resignation Settings",
     category: "Employee Exit Management",
     moduleName: "Employee Resignation",
     description: "Manage resignations and approval workflows.",
+
     api: {
       list: API_ENDPOINTS.employeeResignation.list,
       create: API_ENDPOINTS.employeeResignation.apply,
@@ -200,20 +69,32 @@ export const standaloneSettingsModules = {
       update: API_ENDPOINTS.employeeResignation.update,
       delete: API_ENDPOINTS.employeeResignation.delete,
     },
+
     idKey: "resignationId",
+
     columns: [
-      { key: "employeeId", label: "Employee" },
+      { key: "employee_Id", label: "Employee" },
       { key: "resignationDate", label: "Resignation Date" },
       { key: "lastWorkingDate", label: "Last Working Date" },
-      { key: "status", label: "Status" },
+      { key: "managerStatus", label: "Manager Status" },
+      { key: "hrStatus", label: "HR Status" },
+      { key: "overallStatus", label: "Overall Status" },
     ],
+
     formFields: [
-      text("employeeId", "Employee", { required: true }),
+      text("employee_Id", "Employee", { required: true }),
       date("resignationDate", "Resignation Date", { required: true }),
-      date("lastWorkingDate", "Last Working Date"),
+      date("lastWorkingDate", "Last Working Date", { required: true }),
       textarea("reason", "Reason", { required: true }),
     ],
-    searchFields: ["employeeId", "employeeName", "status", "reason"],
+
+    searchFields: [
+      "employee_Id",
+      "employeeName",
+      "overallStatus",
+      "reason",
+    ],
+
     workflowButtons: [
       {
         key: "managerApproval",
@@ -222,8 +103,16 @@ export const standaloneSettingsModules = {
         method: "put",
         permission: "approve",
         fields: [
-          select("status", "Status", approvalOptions, { required: true }),
-          textarea("comments", "Comments"),
+          select(
+            "isApproved",
+            "Decision",
+            [
+              { value: true, label: "Approve" },
+              { value: false, label: "Reject" },
+            ],
+            { required: true }
+          ),
+          textarea("remarks", "Remarks"),
         ],
       },
       {
@@ -233,111 +122,183 @@ export const standaloneSettingsModules = {
         method: "put",
         permission: "approve",
         fields: [
-          select("status", "Status", approvalOptions, { required: true }),
-          textarea("comments", "Comments"),
+          select(
+            "isApproved",
+            "Decision",
+            [
+              { value: true, label: "Approve" },
+              { value: false, label: "Reject" },
+            ],
+            { required: true }
+          ),
+          textarea("remarks", "Remarks"),
         ],
       },
     ],
   },
+
   employeeClearance: {
     route: "/settings/employee-clearance",
     title: "Employee Clearance Settings",
     category: "Employee Exit Management",
     moduleName: "Employee Clearance",
     description: "Create and update department clearance records.",
+
     api: {
       list: API_ENDPOINTS.employeeClearance.pending,
       create: API_ENDPOINTS.employeeClearance.create,
       update: API_ENDPOINTS.employeeClearance.department,
     },
+
     idKey: "clearanceId",
+
     columns: [
+      { key: "clearanceId", label: "Clearance" },
       { key: "resignationId", label: "Resignation" },
-      { key: "employeeId", label: "Employee" },
-      { key: "department", label: "Department" },
-      { key: "status", label: "Status" },
+      { key: "itStatus", label: "IT" },
+      { key: "adminStatus", label: "Admin" },
+      { key: "financeStatus", label: "Finance" },
+      { key: "hrStatus", label: "HR" },
+      { key: "completedDate", label: "Completed Date" },
     ],
+
     formFields: [
-      text("resignationId", "Resignation", { required: true }),
-      text("employeeId", "Employee"),
+      number("resignationId", "Resignation", { required: true }),
       text("department", "Department", { required: true }),
-      select("status", "Status", approvalOptions),
+      select(
+        "isApproved",
+        "Decision",
+        [
+          { value: true, label: "Approve" },
+          { value: false, label: "Reject" },
+        ],
+        { required: true }
+      ),
       textarea("remarks", "Remarks"),
     ],
+
     filters: [
       {
         key: "statusView",
         label: "Status",
         options: [
-          { value: "pending", label: "Pending", endpoint: API_ENDPOINTS.employeeClearance.pending },
-          { value: "completed", label: "Completed", endpoint: API_ENDPOINTS.employeeClearance.completed },
+          {
+            value: "pending",
+            label: "Pending",
+            endpoint: API_ENDPOINTS.employeeClearance.pending,
+          },
+          {
+            value: "completed",
+            label: "Completed",
+            endpoint: API_ENDPOINTS.employeeClearance.completed,
+          },
         ],
       },
     ],
-    searchFields: ["resignationId", "employeeId", "department", "status"],
+
+    searchFields: [
+      "resignationId",
+      "itStatus",
+      "adminStatus",
+      "financeStatus",
+      "hrStatus",
+    ],
   },
+
   exitInterview: {
     route: "/settings/exit-interview",
     title: "Exit Interview Settings",
     category: "Employee Exit Management",
     moduleName: "Exit Interview",
     description: "Capture exit interview notes and feedback.",
+
     api: {
       list: API_ENDPOINTS.exitInterview.list,
       create: API_ENDPOINTS.exitInterview.create,
       delete: API_ENDPOINTS.exitInterview.delete,
     },
+
     idKey: "exitInterviewId",
+
     columns: [
       { key: "resignationId", label: "Resignation" },
-      { key: "employeeId", label: "Employee" },
+      { key: "conductedBy", label: "Conducted By" },
       { key: "interviewDate", label: "Interview Date" },
-      { key: "status", label: "Status" },
+      { key: "reasonForLeaving", label: "Reason For Leaving" },
+      { key: "feedback", label: "Feedback" },
+      { key: "suggestions", label: "Suggestions" },
     ],
+
     formFields: [
-      text("resignationId", "Resignation", { required: true }),
-      date("interviewDate", "Interview Date"),
+      number("resignationId", "Resignation", { required: true }),
+      text("conductedBy", "Conducted By"),
+      date("interviewDate", "Interview Date", { required: true }),
+      textarea("reasonForLeaving", "Reason For Leaving"),
       textarea("feedback", "Feedback"),
-      textarea("remarks", "Remarks"),
+      textarea("suggestions", "Suggestions"),
     ],
-    searchFields: ["resignationId", "employeeId", "feedback", "status"],
+
+    searchFields: [
+      "resignationId",
+      "conductedBy",
+      "reasonForLeaving",
+      "feedback",
+    ],
   },
+
   fullFinalSettlement: {
     route: "/settings/full-final-settlement",
     title: "Full Final Settlement Settings",
     category: "Employee Exit Management",
     moduleName: "Full Final Settlement",
     description: "Generate and approve full and final settlement records.",
+
     api: {
       list: API_ENDPOINTS.fullFinalSettlement.list,
       create: API_ENDPOINTS.fullFinalSettlement.generate,
       get: API_ENDPOINTS.fullFinalSettlement.byEmployee,
       delete: API_ENDPOINTS.fullFinalSettlement.delete,
     },
+
     idKey: "settlementId",
+
     columns: [
-      { key: "employeeId", label: "Employee" },
-      { key: "netAmount", label: "Net Amount" },
-      { key: "settlementDate", label: "Settlement Date" },
+      { key: "employee_Id", label: "Employee" },
+      { key: "grossSalary", label: "Gross Salary" },
+      { key: "leaveEncashment", label: "Leave Encashment" },
+      { key: "bonus", label: "Bonus" },
+      { key: "deductions", label: "Deductions" },
+      { key: "netSettlement", label: "Net Settlement" },
+      { key: "generatedDate", label: "Generated Date" },
       { key: "status", label: "Status" },
     ],
+
     formFields: [
-      text("employeeId", "Employee", { required: true }),
-      date("settlementDate", "Settlement Date"),
-      number("netAmount", "Net Amount"),
-      textarea("remarks", "Remarks"),
+      text("employee_Id", "Employee", { required: true }),
     ],
-    searchFields: ["employeeId", "status", "netAmount", "remarks"],
+
+    searchFields: [
+      "employee_Id",
+      "status",
+    ],
+
     workflowButtons: [
       {
         key: "approve",
-        label: "Approve",
+        label: "Approve / Reject",
         endpoint: API_ENDPOINTS.fullFinalSettlement.approve,
         method: "put",
         permission: "approve",
         fields: [
-          select("status", "Status", approvalOptions, { required: true }),
-          textarea("remarks", "Remarks"),
+          select(
+            "isApproved",
+            "Decision",
+            [
+              { value: true, label: "Approve" },
+              { value: false, label: "Reject" },
+            ],
+            { required: true }
+          ),
         ],
       },
     ],
@@ -356,22 +317,31 @@ export const shiftModulesConfig = {
       update: API_ENDPOINTS.shift.update,
       delete: API_ENDPOINTS.shift.delete,
     },
-    idKey: "id",
+    idKey: "shiftId",
     columns: [
       { key: "shiftName", label: "Shift Name" },
+      { key: "shiftCode", label: "Shift Code" },
       { key: "startTime", label: "Start Time" },
       { key: "endTime", label: "End Time" },
-      { key: "graceTime", label: "Grace Time" },
+      { key: "isActive", label: "Active" },
     ],
     formFields: [
       text("shiftName", "Shift Name", { required: true }),
+      text("shiftCode", "Shift Code", { required: true }),
       time("startTime", "Start Time", { required: true }),
       time("endTime", "End Time", { required: true }),
-      number("graceTime", "Grace Time"),
+      number("graceTimeMinutes", "Grace Time (Minutes)"),
       textarea("description", "Description"),
     ],
-    searchFields: ["shiftName", "description", "startTime", "endTime"],
+    searchFields: [
+      "shiftName",
+      "shiftCode",
+      "description",
+      "startTime",
+      "endTime",
+    ],
   },
+
   employeeShift: {
     title: "Employee Shift Assignment",
     category: "Shift Module",
@@ -384,24 +354,28 @@ export const shiftModulesConfig = {
     },
     idKey: "assignmentId",
     columns: [
-      { key: "employeeId", label: "Employee" },
-      { key: "shiftId", label: "Shift" },
-      { key: "effectiveDate", label: "Effective Date" },
-      { key: "status", label: "Status" },
+      { key: "employee_Id", label: "Employee" },
+      { key: "shiftName", label: "Shift" },
+      { key: "shiftCode", label: "Shift Code" },
+      { key: "startTime", label: "Start Time" },
+      { key: "endTime", label: "End Time" },
+      { key: "effectiveFrom", label: "Effective From" },
+      { key: "effectiveTo", label: "Effective To" },
+      { key: "isActive", label: "Active" },
     ],
     formFields: [
-      text("employeeId", "Employee", { required: true }),
-      text("shiftId", "Shift", { required: true }),
-      date("effectiveDate", "Effective Date", { required: true }),
+      text("employee_Id", "Employee", { required: true }),
+      number("shiftId", "Shift", { required: true }),
+      date("effectiveFrom", "Effective From", { required: true }),
+      date("effectiveTo", "Effective To"),
     ],
-    searchFields: ["employeeId", "employeeName", "shiftId", "shiftName", "status"],
-    bulkUpload: {
-      label: "Bulk Assign",
-      endpoint: API_ENDPOINTS.employeeShift.bulkAssign,
-      fileField: "file",
-      permission: "bulkUpload",
-    },
+    searchFields: [
+      "employee_Id",
+      "shiftName",
+      "shiftCode",
+    ],
   },
+
   weeklyOff: {
     title: "Weekly Off",
     category: "Shift Module",
@@ -413,20 +387,47 @@ export const shiftModulesConfig = {
       update: API_ENDPOINTS.employeeWeeklyOff.update,
       delete: API_ENDPOINTS.employeeWeeklyOff.delete,
     },
-    idKey: "id",
+    idKey: "weeklyOffId",
     columns: [
-      { key: "employeeId", label: "Employee" },
-      { key: "weekDay", label: "Week Day" },
-      { key: "effectiveDate", label: "Effective Date" },
-      { key: "status", label: "Status" },
+      { key: "employee_Id", label: "Employee" },
+      { key: "dayName", label: "Day" },
+      { key: "effectiveFrom", label: "Effective From" },
+      { key: "effectiveTo", label: "Effective To" },
+      { key: "isActive", label: "Active" },
     ],
     formFields: [
-      text("employeeId", "Employee"),
-      select("weekDay", "Week Day", ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], { required: true }),
-      date("effectiveDate", "Effective Date", { required: true }),
+      text("employee_Id", "Employee", { required: true }),
+      select(
+        "dayName",
+        "Day",
+        [
+          { value: "Monday", label: "Monday" },
+          { value: "Tuesday", label: "Tuesday" },
+          { value: "Wednesday", label: "Wednesday" },
+          { value: "Thursday", label: "Thursday" },
+          { value: "Friday", label: "Friday" },
+          { value: "Saturday", label: "Saturday" },
+          { value: "Sunday", label: "Sunday" },
+        ],
+        { required: true }
+      ),
+      date("effectiveFrom", "Effective From", { required: true }),
+      date("effectiveTo", "Effective To"),
+      select(
+        "isActive",
+        "Active",
+        [
+          { value: true, label: "Active" },
+          { value: false, label: "Inactive" },
+        ]
+      ),
     ],
-    searchFields: ["employeeId", "employeeName", "weekDay", "status"],
+    searchFields: [
+      "employee_Id",
+      "dayName",
+    ],
   },
+
   shiftPlanner: {
     title: "Shift Planner",
     category: "Shift Module",
@@ -438,51 +439,60 @@ export const shiftModulesConfig = {
       update: API_ENDPOINTS.shiftPlanner.update,
       delete: API_ENDPOINTS.shiftPlanner.delete,
     },
-    idKey: "id",
+    idKey: "plannerId",
     columns: [
-      { key: "week", label: "Week" },
-      { key: "month", label: "Month" },
-      { key: "year", label: "Year" },
-      { key: "status", label: "Status" },
+      { key: "shiftName", label: "Shift" },
+      { key: "department_Id", label: "Department" },
+      { key: "fromDate", label: "From Date" },
+      { key: "toDate", label: "To Date" },
+      { key: "isPublished", label: "Published" },
     ],
     formFields: [
-      number("week", "Week"),
-      number("month", "Month", { required: true }),
-      number("year", "Year", { required: true }),
-      textarea("planner", "Planner", { required: true }),
+      number("shiftId", "Shift", { required: true }),
+      text("department_Id", "Department", { required: true }),
+      date("fromDate", "From Date", { required: true }),
+      date("toDate", "To Date", { required: true }),
+      textarea("remarks", "Remarks"),
+      select(
+        "isPublished",
+        "Published",
+        [
+          { value: false, label: "Draft" },
+          { value: true, label: "Published" },
+        ]
+      ),
     ],
-    searchFields: ["week", "month", "year", "status"],
+    searchFields: [
+      "shiftName",
+      "department_Id",
+      "fromDate",
+      "toDate",
+    ],
     workflowButtons: [
       {
         key: "publish",
         label: "Publish",
         endpoint: API_ENDPOINTS.shiftPlanner.publish,
+        method: "post",
         permission: "publish",
       },
       {
         key: "copyWeek",
         label: "Copy Week",
         endpoint: API_ENDPOINTS.shiftPlanner.copyWeek,
+        method: "post",
         permission: "copy",
-        fields: [
-          number("sourceWeek", "Source Week", { required: true }),
-          number("targetWeek", "Target Week", { required: true }),
-          number("year", "Year", { required: true }),
-        ],
       },
       {
         key: "copyMonth",
         label: "Copy Month",
         endpoint: API_ENDPOINTS.shiftPlanner.copyMonth,
+        method: "post",
         permission: "copy",
-        fields: [
-          number("sourceMonth", "Source Month", { required: true }),
-          number("targetMonth", "Target Month", { required: true }),
-          number("year", "Year", { required: true }),
-        ],
       },
     ],
   },
+
   shiftRotation: {
     title: "Shift Rotation",
     category: "Shift Module",
@@ -494,21 +504,41 @@ export const shiftModulesConfig = {
       update: API_ENDPOINTS.shiftRotation.update,
       delete: API_ENDPOINTS.shiftRotation.delete,
     },
-    idKey: "id",
+    idKey: "rotationId",
     columns: [
+      { key: "employee_Id", label: "Employee" },
       { key: "rotationType", label: "Rotation Type" },
-      { key: "employeeId", label: "Employee" },
-      { key: "shiftId", label: "Shift" },
-      { key: "status", label: "Status" },
+      { key: "shift1Id", label: "Shift 1" },
+      { key: "shift2Id", label: "Shift 2" },
+      { key: "shift3Id", label: "Shift 3" },
+      { key: "effectiveFrom", label: "Effective From" },
+      { key: "isActive", label: "Active" },
     ],
     formFields: [
-      text("rotationType", "Rotation Type", { required: true }),
-      text("employeeId", "Employee", { required: true }),
-      text("shiftId", "Shift", { required: true }),
-      textarea("description", "Description"),
+      text("employee_Id", "Employee", { required: true }),
+      select(
+        "rotationType",
+        "Rotation Type",
+        [
+          { value: "Weekly", label: "Weekly" },
+          { value: "Monthly", label: "Monthly" },
+        ],
+        { required: true }
+      ),
+      number("shift1Id", "Shift 1", { required: true }),
+      number("shift2Id", "Shift 2"),
+      number("shift3Id", "Shift 3"),
+      date("effectiveFrom", "Effective From", { required: true }),
     ],
-    searchFields: ["rotationType", "employeeId", "shiftId", "status"],
+    searchFields: [
+      "employee_Id",
+      "rotationType",
+      "shift1Id",
+      "shift2Id",
+      "shift3Id",
+    ],
   },
+
   shiftSwap: {
     title: "Shift Swap",
     category: "Shift Module",
@@ -519,32 +549,40 @@ export const shiftModulesConfig = {
       get: API_ENDPOINTS.shiftSwap.byId,
       delete: API_ENDPOINTS.shiftSwap.delete,
     },
-    idKey: "id",
+    idKey: "swapId",
     columns: [
-      { key: "employeeId", label: "Employee" },
-      { key: "swapEmployeeId", label: "Swap Employee" },
+      { key: "fromEmployeeId", label: "From Employee" },
+      { key: "toEmployeeId", label: "To Employee" },
+      { key: "shiftDate", label: "Shift Date" },
+      { key: "shiftId", label: "Shift" },
       { key: "reason", label: "Reason" },
       { key: "status", label: "Status" },
     ],
     formFields: [
-      text("employeeId", "Employee", { required: true }),
-      text("swapEmployeeId", "Swap Employee", { required: true }),
+      text("fromEmployeeId", "From Employee", { required: true }),
+      text("toEmployeeId", "To Employee", { required: true }),
+      date("shiftDate", "Shift Date", { required: true }),
+      number("shiftId", "Shift", { required: true }),
       textarea("reason", "Reason", { required: true }),
     ],
-    searchFields: ["employeeId", "swapEmployeeId", "reason", "status"],
+    searchFields: [
+      "fromEmployeeId",
+      "toEmployeeId",
+      "shiftDate",
+      "status",
+      "reason",
+    ],
     workflowButtons: [
       {
         key: "approve",
-        label: "Approve",
+        label: "Approve / Reject",
         endpoint: API_ENDPOINTS.shiftSwap.approve,
+        method: "post",
         permission: "approve",
-        fields: [
-          select("status", "Status", approvalOptions, { required: true }),
-          textarea("comments", "Comments"),
-        ],
       },
     ],
   },
+
   shiftChangeRequest: {
     title: "Shift Change Requests",
     category: "Shift Module",
@@ -555,32 +593,50 @@ export const shiftModulesConfig = {
       get: API_ENDPOINTS.shiftChangeRequest.byId,
       delete: API_ENDPOINTS.shiftChangeRequest.delete,
     },
-    idKey: "id",
+    idKey: "requestId",
     columns: [
-      { key: "employeeId", label: "Employee" },
+      { key: "employee_Id", label: "Employee" },
+      { key: "currentShiftId", label: "Current Shift" },
       { key: "requestedShiftId", label: "Requested Shift" },
-      { key: "reason", label: "Reason" },
+      { key: "effectiveFrom", label: "Effective From" },
+      { key: "effectiveTo", label: "Effective To" },
+      { key: "isPermanent", label: "Permanent" },
       { key: "status", label: "Status" },
     ],
     formFields: [
-      text("employeeId", "Employee", { required: true }),
-      text("requestedShiftId", "Requested Shift", { required: true }),
+      text("employee_Id", "Employee", { required: true }),
+      number("currentShiftId", "Current Shift", { required: true }),
+      number("requestedShiftId", "Requested Shift", { required: true }),
+      date("effectiveFrom", "Effective From", { required: true }),
+      date("effectiveTo", "Effective To"),
+      select(
+        "isPermanent",
+        "Permanent",
+        [
+          { value: true, label: "Yes" },
+          { value: false, label: "No" },
+        ]
+      ),
       textarea("reason", "Reason", { required: true }),
     ],
-    searchFields: ["employeeId", "requestedShiftId", "reason", "status"],
+    searchFields: [
+      "employee_Id",
+      "currentShiftId",
+      "requestedShiftId",
+      "status",
+      "reason",
+    ],
     workflowButtons: [
       {
         key: "approve",
-        label: "Approve",
+        label: "Approve / Reject",
         endpoint: API_ENDPOINTS.shiftChangeRequest.approve,
+        method: "post",
         permission: "approve",
-        fields: [
-          select("status", "Status", approvalOptions, { required: true }),
-          textarea("comments", "Comments"),
-        ],
       },
     ],
   },
+
   shiftRoster: {
     title: "Shift Roster",
     category: "Shift Module",
@@ -592,19 +648,34 @@ export const shiftModulesConfig = {
       update: API_ENDPOINTS.shiftRoster.update,
       delete: API_ENDPOINTS.shiftRoster.delete,
     },
-    idKey: "id",
+    idKey: "rosterId",
     columns: [
-      { key: "employeeId", label: "Employee" },
+      { key: "employee_Id", label: "Employee" },
       { key: "shiftId", label: "Shift" },
-      { key: "date", label: "Date" },
-      { key: "status", label: "Status" },
+      { key: "rosterDate", label: "Date" },
+      { key: "remarks", label: "Remarks" },
+      { key: "isPublished", label: "Published" },
     ],
     formFields: [
-      text("employeeId", "Employee", { required: true }),
-      text("shiftId", "Shift", { required: true }),
-      date("date", "Date", { required: true }),
+      text("employee_Id", "Employee", { required: true }),
+      number("shiftId", "Shift", { required: true }),
+      date("rosterDate", "Date", { required: true }),
+      textarea("remarks", "Remarks"),
+      select(
+        "isPublished",
+        "Published",
+        [
+          { value: true, label: "Yes" },
+          { value: false, label: "No" },
+        ]
+      ),
     ],
-    searchFields: ["employeeId", "employeeName", "shiftId", "shiftName", "date", "status"],
+    searchFields: [
+      "employee_Id",
+      "shiftId",
+      "rosterDate",
+      "remarks",
+    ],
     workflowButtons: [
       {
         key: "employeeRoster",
@@ -612,13 +683,14 @@ export const shiftModulesConfig = {
         endpoint: API_ENDPOINTS.shiftRoster.byEmployee,
         method: "get",
         permission: "workflow",
-        fields: [text("employeeId", "Employee", { required: true })],
+        fields: [
+          text("employeeId", "Employee", { required: true }),
+        ],
       },
     ],
     bulkUpload: {
-      label: "Bulk Upload",
+      label: "Bulk Assign",
       endpoint: API_ENDPOINTS.shiftRoster.bulk,
-      fileField: "file",
       permission: "bulkUpload",
     },
   },

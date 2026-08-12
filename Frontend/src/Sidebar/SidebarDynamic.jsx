@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   FaTachometerAlt,
   FaUsers,
@@ -18,34 +18,41 @@ import {
   FaCog,
   FaTicketAlt,
   FaCreditCard,
-  FaFileInvoiceDollar,
-  FaExclamationCircle,
+  FaHeadset,
 } from "react-icons/fa";
 import { NavLink, useLocation } from "react-router-dom";
-import { usePermissionScope } from "../context/usePermissionScope";
-import {
-  hasEmployeeIdClaim,
-  getDashboardPathForRole,
-  getUserRole,
-  isEmployeeOnlyModule,
-  modulePermissionMatches,
-  isSuperAdmin,
-} from "../utils/authorization";
-import { ticketPermissionMatches } from "../TicketManagement/ticketConfig";
-import honeyIcon from "../assets/honeywell.png";
 import "./Sidebar.css";
+import honeyIcon from "../assets/honeywell.png";
+import { useBrandingLogo } from "../utils/brandingLogo";
+import { getUserRole, hasModulePermission, hasRole, isAdmin, isOnboardingUser, isSuperAdmin } from "../utils/authorization";
 
-const SIDEBAR_NAVIGATION = [
+const SUPER_ADMIN_EXPANDABLE_MENUS = [];
+
+const SUPER_ADMIN_STATIC_MENUS = [
   {
-    kind: "link",
-    key: "dashboard",
-    label: "Dashboard",
+    to: "/super-admin/dashboard",
     icon: FaTachometerAlt,
-    moduleNames: ["Dashboard"],
-    getTo: (roleName) => getDashboardPathForRole(roleName),
+    label: "Dashboard",
   },
   {
-    kind: "group",
+    to: "/super-admin/administration/admins",
+    icon: FaUsers,
+    label: "Admin Management",
+  },
+  {
+    to: "/super-admin/administration/subscriptions",
+    icon: FaCreditCard,
+    label: "Subscription Management",
+  },
+  {
+    to: "/super-admin/administration/permissions",
+    icon: FaShieldAlt,
+    label: "Permissions",
+  },
+];
+
+const EXPANDABLE_MENUS = [
+  {
     key: "employees",
     label: "Employees",
     icon: FaUsers,
@@ -54,24 +61,23 @@ const SIDEBAR_NAVIGATION = [
         to: "/employees",
         icon: FaList,
         label: "Employee List",
-        moduleNames: ["Employees", "Employee List"],
+        permission: "Employees",
       },
       {
         to: "/admin/onboarding",
         icon: FaUserTie,
         label: "Onboarding List",
-        moduleNames: ["Onboarding List", "Onboarding"],
+        permission: "Onboarding List",
       },
       {
         to: "/add-employee",
         icon: FaUsers,
         label: "Add Details",
-        moduleNames: ["Add Employee", "Add Details"],
+        permission: "Add Employee",
       },
     ],
   },
   {
-    kind: "group",
     key: "company",
     label: "Company",
     icon: FaBuilding,
@@ -80,50 +86,23 @@ const SIDEBAR_NAVIGATION = [
         to: "/company",
         icon: FaBuilding,
         label: "Company Details",
-        moduleNames: ["Company Details", "Company"],
+        permission: "Company Details",
       },
       {
         to: "/projects",
         icon: FaList,
         label: "Projects",
-        moduleNames: ["Projects"],
+        permission: "Projects",
       },
       {
         to: "/holidays",
         icon: FaCalendarAlt,
         label: "Holidays",
-        moduleNames: ["Holidays"],
+        permission: "Holidays",
       },
     ],
   },
   {
-    kind: "group",
-    key: "administration",
-    label: "Administration",
-    icon: FaShieldAlt,
-    items: [
-      {
-        to: "/super-admin/administration/admins",
-        icon: FaUsers,
-        label: "Admin Management",
-        moduleNames: ["Admin Management", "Admins"],
-      },
-      {
-        to: "/super-admin/administration/subscriptions",
-        icon: FaCreditCard,
-        label: "Subscription Management",
-        moduleNames: ["Subscription Management", "Subscriptions"],
-      },
-      {
-        to: "/super-admin/administration/permissions",
-        icon: FaShieldAlt,
-        label: "Permissions",
-        moduleNames: ["Permissions", "Super Admin Permissions"],
-      },
-    ],
-  },
-  {
-    kind: "group",
     key: "masters",
     label: "Masters",
     icon: FaShieldAlt,
@@ -132,442 +111,199 @@ const SIDEBAR_NAVIGATION = [
         to: "/roles",
         icon: FaShieldAlt,
         label: "Roles",
-        moduleNames: ["Roles"],
+        permission: "Roles",
       },
       {
         to: "/assets",
         icon: FaLaptop,
         label: "Assets",
-        moduleNames: ["Assets"],
+        permission: "Assets",
       },
       {
         to: "/clients",
         icon: FaUserTie,
         label: "Clients",
-        moduleNames: ["Clients"],
+        permission: "Clients",
       },
       {
         to: "/departments",
         icon: FaBuilding,
         label: "Departments",
-        moduleNames: ["Departments"],
+        permission: "Departments",
       },
     ],
   },
   {
-    kind: "group",
     key: "tickets",
     label: "Ticket Management",
+    labelByRole: {
+      user: "My Tickets",
+      employee: "My Tickets",
+    },
     icon: FaTicketAlt,
-    singleChildAsLink: true,
     items: [
       {
         to: "/admin/tickets",
         icon: FaList,
         label: "All Tickets",
-        moduleNames: ["All Tickets"],
+        permission: "All Tickets",
       },
       {
         to: "/employee/my-tickets",
         icon: FaList,
         label: "My Tickets",
-        moduleNames: ["My Tickets"],
+        permission: "My Tickets",
       },
     ],
   },
   {
-    kind: "link",
-    key: "payroll",
-    label: "Payroll",
-    icon: FaMoneyBillWave,
-    to: "/payroll",
-    moduleNames: ["Payroll"],
-  },
-  {
-    kind: "link",
-    key: "user-payslip",
-    label: "Payslip",
-    icon: FaMoneyBillWave,
-    to: "/user-payslip",
-    moduleNames: ["User Payslip"],
-  },
-  {
-    kind: "link",
-    key: "reports",
-    label: "Reports",
-    icon: FaChartBar,
-    to: "/reports",
-    moduleNames: ["Reports"],
-  },
-  {
-    kind: "link",
-    key: "offer-letters",
-    label: "Offer Letters",
-    icon: FaFileSignature,
-    to: "/offer-letters",
-    moduleNames: ["Offer Letters"],
-  },
-  {
-    kind: "link",
-    key: "attendance",
-    label: "Attendance",
-    icon: FaCalendarAlt,
-    to: "/attendance",
-    moduleNames: ["Attendance"],
-  },
-  {
-    kind: "link",
-    key: "user-attendance",
-    label: "My Attendance",
-    icon: FaCalendarAlt,
-    to: "/user-attendance",
-    moduleNames: ["User Attendance"],
-  },
-  {
-    kind: "link",
-    key: "teams",
-    label: "Teams",
-    icon: FaProjectDiagram,
-    to: "/teams",
-    moduleNames: ["Teams"],
-  },
-  {
-    kind: "link",
-    key: "leave-management",
-    label: "Leave",
-    icon: FaCalendarMinus,
-    to: "/leave-management",
-    moduleNames: ["Leave Management"],
-  },
-  {
-    kind: "link",
-    key: "user-leave-management",
-    label: "Employee Leave",
-    icon: FaCalendarMinus,
-    to: "/user-leave-management",
-    moduleNames: ["User Leave Management"],
-  },
-  {
-    kind: "link",
-    key: "notifications",
-    label: "Notifications",
-    icon: FaBell,
-    to: "/notifications",
-    moduleNames: ["Notifications"],
-  },
-  {
-    kind: "link",
-    key: "user-notifications",
-    label: "My Notifications",
-    icon: FaBell,
-    to: "/user-notifications",
-    moduleNames: ["User Notifications"],
-  },
-  {
-    kind: "group",
     key: "settings",
     label: "Settings",
     icon: FaCog,
+    adminOnly: true,
+    hidden: true,
     items: [
-      {
-        to: "/settings",
-        icon: FaCog,
-        label: "General Settings",
-        moduleNames: ["Settings", "General Settings"],
-      },
-      {
-        to: "/settings/appraisal",
-        icon: FaChartBar,
-        label: "Appraisal",
-        moduleNames: ["Appraisal"],
-      },
-      {
-        to: "/settings/employee-goals",
-        icon: FaList,
-        label: "Employee Goals",
-        moduleNames: ["Employee Goals"],
-      },
-      {
-        to: "/settings/goal-review",
-        icon: FaChartBar,
-        label: "Goal Review",
-        moduleNames: ["Goal Review"],
-      },
-      {
-        to: "/settings/performance-cycle",
-        icon: FaCalendarAlt,
-        label: "Performance Cycle",
-        moduleNames: ["Performance Cycle"],
-      },
-      {
-        to: "/settings/resignation",
-        icon: FaFileSignature,
-        label: "Resignation",
-        moduleNames: ["Resignation"],
-      },
-      {
-        to: "/settings/employee-clearance",
-        icon: FaShieldAlt,
-        label: "Employee Clearance",
-        moduleNames: ["Employee Clearance"],
-      },
-      {
-        to: "/settings/exit-interview",
-        icon: FaUserTie,
-        label: "Exit Interview",
-        moduleNames: ["Exit Interview"],
-      },
-      {
-        to: "/settings/full-final-settlement",
-        icon: FaMoneyBillWave,
-        label: "Full Final Settlement",
-        moduleNames: ["Full Final Settlement"],
-      },
-      {
-        to: "/settings/shift",
-        icon: FaCalendarAlt,
-        label: "Shift Settings",
-        moduleNames: ["Shift Settings"],
-      },
-      {
-        to: "/settings/tax-management",
-        icon: FaFileInvoiceDollar,
-        label: "Tax Management",
-        moduleNames: ["Tax Management"],
-      },
-      {
-        to: "/settings/templates",
-        icon: FaFileSignature,
-        label: "Templates",
-        moduleNames: ["Templates"],
-      },
-      {
-        to: "/settings/workflow",
-        icon: FaProjectDiagram,
-        label: "Workflow",
-        moduleNames: ["Workflow"],
-      },
+      { to: "/settings", icon: FaCog, label: "General Settings", adminOnly: true },
+      { to: "/settings/resignation", icon: FaFileSignature, label: "Resignation", adminOnly: true },
+      { to: "/settings/employee-clearance", icon: FaShieldAlt, label: "Employee Clearance", adminOnly: true },
+      { to: "/settings/exit-interview", icon: FaUserTie, label: "Exit Interview", adminOnly: true },
+      { to: "/settings/full-final-settlement", icon: FaMoneyBillWave, label: "Full Final Settlement", adminOnly: true },
+      { to: "/settings/shift", icon: FaCalendarAlt, label: "Shift Settings", adminOnly: true },
+      { to: "/settings/templates", icon: FaFileSignature, label: "Templates", adminOnly: true },
     ],
   },
 ];
 
-const SUPER_ADMIN_ROUTE_ALIASES = {
-  "/super-admin/administration/admins": "/admin-management",
-  "/super-admin/administration/subscriptions": "/subscription-management",
-  "/super-admin/administration/permissions": "/permissions",
+const EXPANDABLE_MENU_PATHS = EXPANDABLE_MENUS.reduce((acc, menu) => {
+  acc[menu.key] = menu.items.map((item) => item.to);
+  return acc;
+}, SUPER_ADMIN_EXPANDABLE_MENUS.reduce((acc, menu) => {
+  acc[menu.key] = menu.items.map((item) => item.to);
+  return acc;
+}, {}));
+
+const pathMatchesMenu = (pathname, menuKey) => {
+  const menuPaths = EXPANDABLE_MENU_PATHS[menuKey] || [];
+
+  return menuPaths.some((path) => {
+    if (pathname === path) {
+      return true;
+    }
+
+    return path === "/add-employee" && pathname.startsWith("/add-employee/");
+  });
 };
 
-const SUPER_ADMIN_ALLOWED_TOP_LEVEL_KEYS = new Set([
-  "dashboard",
-  "administration",
-]);
+const STATIC_MENUS_BEFORE_DROPDOWNS = [
+  {
+    getTo: (roleName) => (roleName === "admin" ? "/dashboard" : "/user-dashboard"),
+    icon: FaTachometerAlt,
+    label: "Dashboard",
+  },
+  {
+    to: "/user-holidays",
+    icon: FaCalendarAlt,
+    label: "My Holidays",
+    permission: "User Holidays",
+  },
+];
 
-const SUPER_ADMIN_ALLOWED_ADMIN_LABELS = new Set([
-  "Admin Management",
-  "Subscription Management",
-  "Permissions",
-  "Screen Permissions",
-]);
+const STATIC_MENUS_AFTER_DROPDOWNS = [
+  {
+    to: "/payroll",
+    icon: FaMoneyBillWave,
+    label: "Payroll",
+    permission: "Payroll",
+  },
+  {
+    to: "/user-payslip",
+    icon: FaMoneyBillWave,
+    label: "Payslip",
+    permission: "User Payslip",
+  },
+  {
+    to: "/reports",
+    icon: FaChartBar,
+    label: "Reports",
+    permission: "Reports",
+  },
+  {
+    to: "/offer-letters",
+    icon: FaFileSignature,
+    label: "Official Letter",
+    permission: "Offer Letters",
+  },
+  {
+    to: "/attendance",
+    icon: FaCalendarAlt,
+    label: "Attendance",
+    permission: "Attendance",
+  },
+  {
+    to: "/user-attendance",
+    icon: FaCalendarAlt,
+    label: "My Attendance",
+    permission: "User Attendance",
+  },
+  {
+    to: "/teams",
+    icon: FaProjectDiagram,
+    label: "Teams",
+    permission: "Teams",
+  },
+  {
+    to: "/leave-management",
+    icon: FaCalendarMinus,
+    label: "Leave",
+    permission: "Leave Management",
+  },
+  {
+    to: "/user-leave-management",
+    icon: FaCalendarMinus,
+    label: "Employee Leave",
+    permission: "User Leave Management",
+  },
+  {
+    to: "/notifications",
+    icon: FaBell,
+    label: "Notifications",
+    permission: "Notifications",
+  },
+  {
+    to: "/user-notifications",
+    icon: FaBell,
+    label: "My Notifications",
+    permission: "User Notifications",
+  },
+  {
+    to: "/settings",
+    icon: FaCog,
+    label: "Settings",
+    adminOnly: true,
+  },
+];
 
-const normalizePath = (path) => String(path ?? "").trim();
-
-const normalizeMenuName = (value) =>
-  String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-
-const matchesPath = (pathname, path) => {
-  const normalizedPath = normalizePath(path);
-
-  if (!normalizedPath) {
-    return false;
-  }
-
-  if (pathname === normalizedPath) {
-    return true;
-  }
-
-  return normalizedPath === "/add-employee" && pathname.startsWith("/add-employee/");
-};
-
-const getItemModuleNames = (item) => {
-  if (!item) {
-    return [];
-  }
-
-  if (Array.isArray(item.moduleNames)) {
-    return item.moduleNames;
-  }
-
-  if (item.moduleName) {
-    return [item.moduleName];
-  }
-
-  return [];
-};
-
-const isEmployeeOnlyNavigationItem = (item) =>
-  getItemModuleNames(item).some((moduleName) => isEmployeeOnlyModule(moduleName));
-
-const matchesAllowedModule = (permission, moduleName) => {
-  const permissionName = String(
-    permission?.moduleName ?? permission?.ModuleName ?? ""
-  ).trim();
-  const requestedModule = String(moduleName ?? "").trim();
-
-  if (!permissionName || !requestedModule) {
-    return false;
-  }
-
-  return (
-    modulePermissionMatches(permissionName, requestedModule) ||
-    ticketPermissionMatches(permissionName, requestedModule) ||
-    modulePermissionMatches(
-      normalizeMenuName(permissionName),
-      normalizeMenuName(requestedModule)
+const getMenuKeyFromPath = (pathname) =>
+  Object.entries(EXPANDABLE_MENU_PATHS).find(([, paths]) =>
+    paths.some((path) =>
+      pathname === path ||
+      (path === "/add-employee" && pathname.startsWith("/add-employee/"))
     )
-  );
-};
+  )?.[0] || null;
 
-const isItemAllowedByPermissions = (item, allowedModules) => {
-  const moduleNames = getItemModuleNames(item);
-
-  if (moduleNames.length === 0) {
-    return true;
-  }
-
-  if (!Array.isArray(allowedModules) || allowedModules.length === 0) {
-    return false;
-  }
-
-  return allowedModules.some(
-    (permission) =>
-      permission?.canAccess === true &&
-      moduleNames.some((moduleName) => matchesAllowedModule(permission, moduleName))
-  );
-};
-
-const resolveItemPath = (item, roleName) => {
-  if (!item) {
-    return "";
-  }
-
-  const superAdminRole = isSuperAdmin(roleName);
-
-  if (typeof item.getTo === "function") {
-    const resolvedPath = normalizePath(item.getTo(roleName));
-
-    return superAdminRole
-      ? SUPER_ADMIN_ROUTE_ALIASES[resolvedPath] || resolvedPath
-      : resolvedPath;
-  }
-
-  const resolvedPath = normalizePath(item.to);
-
-  return superAdminRole
-    ? SUPER_ADMIN_ROUTE_ALIASES[resolvedPath] || resolvedPath
-    : resolvedPath;
-};
-
-const buildNavigationModel = (roleName, allowedModules, hasEmployeeId) => {
-  const superAdminRole = isSuperAdmin(roleName);
-
-  return SIDEBAR_NAVIGATION.reduce((acc, item) => {
-    if (item.kind === "link") {
-      const path = resolveItemPath(item, roleName);
-
-      if (
-        !path ||
-        (!hasEmployeeId && isEmployeeOnlyNavigationItem(item)) ||
-        (superAdminRole &&
-          !SUPER_ADMIN_ALLOWED_TOP_LEVEL_KEYS.has(item.key)) ||
-        (!superAdminRole && !isItemAllowedByPermissions(item, allowedModules))
-      ) {
-        return acc;
-      }
-
-      acc.push({
-        ...item,
-        path,
-      });
-
-      return acc;
-    }
-
-    if (superAdminRole && item.key !== "administration") {
-      return acc;
-    }
-
-    const visibleItems = item.items
-      .filter((child) => {
-        if (!hasEmployeeId && isEmployeeOnlyNavigationItem(child)) {
-          return false;
-        }
-
-        return superAdminRole
-          ? SUPER_ADMIN_ALLOWED_ADMIN_LABELS.has(child.label)
-          : true;
-      })
-      .map((child) => ({
-        ...child,
-        path: resolveItemPath(child, roleName),
-        label:
-          superAdminRole && child.label === "Permissions"
-            ? "Screen Permissions"
-            : child.label,
-      }))
-      .filter(
-        (child) =>
-          child.path &&
-          (superAdminRole || isItemAllowedByPermissions(child, allowedModules))
-      );
-
-    if (visibleItems.length === 0) {
-      return acc;
-    }
-
-    if (item.singleChildAsLink && visibleItems.length === 1) {
-      acc.push({
-        kind: "link",
-        key: `${item.key}:${visibleItems[0].key || visibleItems[0].path}`,
-        label: visibleItems[0].label,
-        icon: item.icon,
-        path: visibleItems[0].path,
-        moduleNames: visibleItems[0].moduleNames,
-      });
-      return acc;
-    }
-
-    acc.push({
-      ...item,
-      paths: visibleItems.map((visibleItem) => visibleItem.path),
-      visibleItems,
-    });
-
-    return acc;
-  }, []);
-};
-
-const getMenuKeyFromPath = (pathname, navigation) =>
-  navigation.find(
-    (item) =>
-      item.kind === "group" &&
-      Array.isArray(item.paths) &&
-      item.paths.some((path) => matchesPath(pathname, path))
-  )?.key || null;
-
-const getLinkClassName = ({ isActive }) =>
+const getMenuLinkClassName = ({ isActive }) =>
   `menu-item ${isActive ? "active" : ""}`;
 
 const getSubmenuLinkClassName = ({ isActive }) =>
   `submenu-item ${isActive ? "active" : ""}`;
 
+const hasPermission = (module) => hasModulePermission(module);
+
 function SidebarLink({ to, icon, label, compact, onClick }) {
   return (
     <NavLink
       to={to}
-      className={getLinkClassName}
+      className={getMenuLinkClassName}
       onClick={onClick}
       data-title={label}
       data-nav-target={to}
@@ -594,25 +330,26 @@ function SubmenuLink({ to, icon, label, onClick }) {
   );
 }
 
-function Sidebar({ collapsed = false, isMobile = false, mobileOpen = false, onClose }) {
+function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
   const location = useLocation();
   const roleName = getUserRole();
-  const hasEmployeeId = hasEmployeeIdClaim();
-  const { isLoading, error, refreshPermissions, allowedModules } = usePermissionScope();
+  const superAdminUser = isSuperAdmin();
+  const resolvedLogo = useBrandingLogo("sidebarLogo");
+  const logoSrc = resolvedLogo || honeyIcon;
   const isCompact = !isMobile && collapsed;
-  const dashboardPath = getDashboardPathForRole(roleName);
-  const navigation = useMemo(
-    () => buildNavigationModel(roleName, allowedModules, hasEmployeeId),
-    [allowedModules, hasEmployeeId, roleName]
-  );
-  const routeMenu = useMemo(
-    () => getMenuKeyFromPath(location.pathname, navigation),
-    [location.pathname, navigation]
-  );
-  const [expandedMenu, setExpandedMenu] = useState(routeMenu);
+  const routeMenu = isCompact ? null : getMenuKeyFromPath(location.pathname);
+  const [menuState, setMenuState] = useState(() => ({
+    active: routeMenu,
+    interactionPath: location.pathname,
+  }));
   const [submenuDirections, setSubmenuDirections] = useState({});
   const menuButtonRefs = useRef({});
   const submenuRefs = useRef({});
+  const activeMenu = isCompact
+    ? null
+    : menuState.interactionPath === location.pathname
+      ? menuState.active
+      : routeMenu;
 
   const setMenuButtonRef = (menuKey) => (node) => {
     if (node) {
@@ -645,7 +382,8 @@ function Sidebar({ collapsed = false, isMobile = false, mobileOpen = false, onCl
     }
 
     const rect = button.getBoundingClientRect();
-    const submenuHeight = submenu.scrollHeight || submenu.offsetHeight || 0;
+    const submenuHeight =
+      submenu.scrollHeight || submenu.offsetHeight || 0;
     const spaceBelow = window.innerHeight - rect.bottom;
     const spaceAbove = rect.top;
     const buffer = 16;
@@ -672,18 +410,72 @@ function Sidebar({ collapsed = false, isMobile = false, mobileOpen = false, onCl
     return nextDirection;
   };
 
+  useEffect(() => {
+    if (isCompact || !menuState.active) {
+      return undefined;
+    }
+
+    const updateDirection = () => {
+      syncSubmenuDirection(menuState.active);
+    };
+
+    updateDirection();
+    window.addEventListener("resize", updateDirection);
+    window.addEventListener("orientationchange", updateDirection);
+
+    return () => {
+      window.removeEventListener("resize", updateDirection);
+      window.removeEventListener("orientationchange", updateDirection);
+    };
+  }, [isCompact, menuState.active]);
+
+  useEffect(() => {
+    if (!isMobile || !mobileOpen) {
+      return undefined;
+    }
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        onClose?.();
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [isMobile, mobileOpen, onClose]);
+
+  useEffect(() => {
+    if (isMobile) {
+      onClose?.();
+    }
+  }, [isMobile, location.pathname, onClose]);
+
   const toggleMenu = (menuKey) => {
-    if (expandedMenu === menuKey) {
-      setExpandedMenu(null);
+    if (isCompact) {
+      return;
+    }
+
+    if (activeMenu === menuKey) {
+      setMenuState({
+        active: null,
+        interactionPath: location.pathname,
+      });
       return;
     }
 
     syncSubmenuDirection(menuKey);
-    setExpandedMenu(menuKey);
+
+    setMenuState({
+      active: menuKey,
+      interactionPath: location.pathname,
+    });
   };
 
   const closeMenus = () => {
-    setExpandedMenu(null);
+    setMenuState({
+      active: null,
+      interactionPath: location.pathname,
+    });
   };
 
   const handleLinkClick = () => {
@@ -694,17 +486,99 @@ function Sidebar({ collapsed = false, isMobile = false, mobileOpen = false, onCl
     }
   };
 
-  const isMenuExpanded = (menuKey) => expandedMenu === menuKey;
+  const isMenuExpanded = (menuKey) => !isCompact && activeMenu === menuKey;
   const isMenuActive = (menuKey) =>
-    routeMenu === menuKey || isMenuExpanded(menuKey);
+    pathMatchesMenu(location.pathname, menuKey) || isMenuExpanded(menuKey);
 
-  const renderNavigationItem = (item) => {
-    if (item.kind === "link") {
+  const renderStaticMenu = (item) => {
+
+    // Hide user menus for admin
+    const adminHiddenMenus = [
+      "Add Details",
+      "My Holidays",
+      "Employee Leave",
+      "My Attendance",
+      "Payslip",
+      "My Notifications",
+    ];
+
+    if (item.hidden) {
+      return null;
+    }
+
+    if (item.adminOnly && !isAdmin()) {
+      return null;
+    }
+
+    if (isAdmin() && adminHiddenMenus.includes(item.label)) {
+      return null;
+    }
+
+    if (item.permission && !hasPermission(item.permission)) {
+      return null;
+    }
+
+    const targetPath =
+      typeof item.getTo === "function" ? item.getTo(roleName) : item.to;
+
+    return (
+      <SidebarLink
+        key={item.label}
+        to={targetPath}
+        icon={item.icon}
+        label={item.label}
+        compact={isCompact}
+        onClick={handleLinkClick}
+      />
+    );
+  };
+
+  const renderExpandableMenu = (menu) => {
+    if (menu.hidden) {
+      return null;
+    }
+
+    const visibleItems = menu.items.filter((item) => {
+      if ((menu.adminOnly || item.adminOnly) && !isAdmin()) {
+        return false;
+      }
+
+      // Hide Add Details for Admin
+      if (isAdmin() && item.label === "Add Details") {
+        return false;
+      }
+
+      // Hide My Tickets for Admin
+      if (isAdmin() && item.label === "My Tickets") {
+        return false;
+      }
+
+      // Hide All Tickets for Employee/User
+      if (hasRole("employee", "user") && item.label === "All Tickets") {
+        return false;
+      }
+
+      return !item.permission || hasPermission(item.permission);
+    });
+
+    if (visibleItems.length === 0) {
+      return null;
+    }
+
+    const submenuDirection = submenuDirections[menu.key] || "down";
+
+    if (
+      menu.key === "tickets" &&
+      hasRole("user", "employee") &&
+      visibleItems.length === 1
+    ) {
+      const item = visibleItems[0];
+
       return (
         <SidebarLink
-          key={item.key}
-          to={item.path}
-          icon={item.icon}
+          key={menu.key}
+          to={item.to}
+          icon={menu.icon}
           label={item.label}
           compact={isCompact}
           onClick={handleLinkClick}
@@ -712,41 +586,49 @@ function Sidebar({ collapsed = false, isMobile = false, mobileOpen = false, onCl
       );
     }
 
-    const submenuDirection = submenuDirections[item.key] || "down";
-
     return (
       <div
-        className={`menu-section ${submenuDirection === "up" ? "submenu-open-up" : "submenu-open-down"}`}
-        key={item.key}
+        className={`menu-section ${submenuDirection === "up"
+          ? "submenu-open-up"
+          : "submenu-open-down"
+          }`}
+        key={menu.key}
       >
         <button
           type="button"
-          className={`menu-item menu-toggle ${isMenuActive(item.key) ? "active" : ""}`}
-          ref={setMenuButtonRef(item.key)}
-          onClick={() => toggleMenu(item.key)}
-          data-title={item.label}
-          aria-expanded={isMenuExpanded(item.key)}
-          title={isCompact ? item.label : undefined}
+          className={`menu-item menu-toggle ${isMenuActive(menu.key) ? "active" : ""
+            }`}
+          ref={setMenuButtonRef(menu.key)}
+          onClick={() => toggleMenu(menu.key)}
+          data-title={menu.label}
+          aria-expanded={isMenuExpanded(menu.key)}
+          title={isCompact ? menu.label : undefined}
         >
-          <span className="menu-item-icon">{React.createElement(item.icon)}</span>
-          <span className="menu-item-label">{item.label}</span>
+          <span className="menu-item-icon">{React.createElement(menu.icon)}</span>
+
+          <span className="menu-item-label">
+            {menu.labelByRole?.[roleName] || menu.label}
+          </span>
           <span className="menu-arrow-wrap">
-            <FaChevronDown className={`menu-arrow ${isMenuExpanded(item.key) ? "rotated" : ""}`} />
+            <FaChevronDown
+              className={`menu-arrow ${isMenuExpanded(menu.key) ? "rotated" : ""
+                }`}
+            />
           </span>
         </button>
 
         {!isCompact && (
           <div
-            ref={setSubmenuRef(item.key)}
-            className={`submenu-shell ${isMenuExpanded(item.key) ? "open" : ""}`}
+            ref={setSubmenuRef(menu.key)}
+            className={`submenu-shell ${isMenuExpanded(menu.key) ? "open" : ""}`}
           >
             <div className="submenu">
-              {item.visibleItems.map((child) => (
+              {visibleItems.map((item) => (
                 <SubmenuLink
-                  key={child.key || child.path}
-                  to={child.path}
-                  icon={child.icon}
-                  label={child.label}
+                  key={item.to}
+                  to={item.to}
+                  icon={item.icon}
+                  label={item.label}
                   onClick={handleLinkClick}
                 />
               ))}
@@ -757,63 +639,27 @@ function Sidebar({ collapsed = false, isMobile = false, mobileOpen = false, onCl
     );
   };
 
-  const renderLoadingState = () => (
-    <div className="sidebar-status-panel" aria-busy="true" aria-live="polite">
-      <div className="sidebar-status-copy">
-        <span className="sidebar-status-icon">
-          <FaExclamationCircle />
-        </span>
-        <div>
-          <div className="sidebar-status-title">Loading permissions</div>
-          <div className="sidebar-status-text">Please wait while your allowed modules are fetched.</div>
-        </div>
-      </div>
-      <div className="sidebar-skeleton-list">
-        {Array.from({ length: 6 }).map((_, index) => (
-          <div
-            key={index}
-            className={`sidebar-skeleton-item ${index === 0 ? "is-large" : ""}`}
-          />
-        ))}
-      </div>
-    </div>
-  );
-
-  const renderErrorState = () => (
-    <div className="sidebar-status-panel sidebar-status-error">
-      <div className="sidebar-status-copy">
-        <span className="sidebar-status-icon">
-          <FaExclamationCircle />
-        </span>
-        <div>
-          <div className="sidebar-status-title">Permissions unavailable</div>
-          <div className="sidebar-status-text">{error || "We could not load your allowed modules right now."}</div>
-        </div>
-      </div>
-      <button
-        type="button"
-        className="sidebar-status-retry"
-        onClick={() => {
-          void refreshPermissions({ force: true }).catch(() => { });
-        }}
-      >
-        Retry
-      </button>
-    </div>
-  );
-
-  const renderEmptyState = () => (
-    <div className="sidebar-status-panel">
-      <div className="sidebar-status-copy">
-        <span className="sidebar-status-icon">
-          <FaExclamationCircle />
-        </span>
-        <div>
-          <div className="sidebar-status-title">No modules assigned</div>
-          <div className="sidebar-status-text">Your account does not currently have any sidebar modules.</div>
-        </div>
-      </div>
-    </div>
+  const renderSuperAdminMenu = () => (
+    <>
+    <SidebarLink
+    to="/super-admin/dashboard"
+    icon={FaTachometerAlt}
+    label="Dashboard"
+    compact={isCompact}
+    onClick={handleLinkClick}
+/>
+      {SUPER_ADMIN_EXPANDABLE_MENUS.map(renderExpandableMenu)}
+      {SUPER_ADMIN_STATIC_MENUS.filter((item) => item.label !== "Dashboard").map((item) => (
+        <SidebarLink
+          key={item.label}
+          to={item.to}
+          icon={item.icon}
+          label={item.label}
+          compact={isCompact}
+          onClick={handleLinkClick}
+        />
+      ))}
+    </>
   );
 
   return (
@@ -828,31 +674,41 @@ function Sidebar({ collapsed = false, isMobile = false, mobileOpen = false, onCl
       )}
 
       <aside
-        className={`sidebar ${isCompact ? "collapsed" : ""} ${isMobile ? "mobile-sidebar" : ""} ${isMobile && mobileOpen ? "mobile-open" : ""
-          }`}
+        className={`sidebar ${isCompact ? "collapsed" : ""} ${isMobile ? "mobile-sidebar" : ""
+          } ${isMobile && mobileOpen ? "mobile-open" : ""}`}
       >
-        <NavLink
-          to={dashboardPath}
-          className="logo sidebar-brand"
-          aria-label="Go to dashboard"
-          onClick={handleLinkClick}
-        >
+        <div className="logo">
           <img
-            src={honeyIcon}
+            src={logoSrc}
             alt="Honeywell Logo"
             className="sidebar-logo-img"
+            onError={(event) => {
+              if (event.currentTarget.src !== honeyIcon) {
+                event.currentTarget.src = honeyIcon;
+              }
+            }}
           />
-        </NavLink>
+        </div>
 
         <nav className="menu">
-          {isLoading ? (
-            renderLoadingState()
-          ) : error && navigation.length === 0 ? (
-            renderErrorState()
-          ) : navigation.length === 0 ? (
-            renderEmptyState()
+          {isOnboardingUser() ? (
+            <>
+              <SidebarLink
+                to="/onboarding/details"
+                icon={FaUsers}
+                label="Add Details"
+                compact={isCompact}
+                onClick={handleLinkClick}
+              />
+            </>
+          ) : superAdminUser ? (
+            renderSuperAdminMenu()
           ) : (
-            navigation.map(renderNavigationItem)
+            <>
+              {STATIC_MENUS_BEFORE_DROPDOWNS.map(renderStaticMenu)}
+              {EXPANDABLE_MENUS.map(renderExpandableMenu)}
+              {STATIC_MENUS_AFTER_DROPDOWNS.map(renderStaticMenu)}
+            </>
           )}
         </nav>
       </aside>

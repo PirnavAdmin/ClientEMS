@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import "./Payroll.css";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS, buildApiUrl } from "../api/endpoints";
@@ -13,7 +13,6 @@ import {
   startPerformanceTimer,
 } from "../utils/performance";
 import { FiDownload, FiLoader, FiTrash2 } from "react-icons/fi";
-import { TableSkeleton } from "../components/Skeletons";
 
 const PAYROLL_MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -22,15 +21,58 @@ const PAYROLL_MONTHS = [
 
 const PAYROLL_YEARS = Array.from({ length: 10 }, (_, i) => 2022 + i);
 const STANDARD_PERIODS = [1, 3, 6, 12];
+const PAYSLIP_BATCH_SIZE = 50;
+const PAYSLIP_CONCURRENCY = 50;
+const PAYROLL_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+const DEFAULT_PAYROLL_PAGE_SIZE = 25;
+const MAX_FAILED_ITEMS_TO_SHOW = 5;
 const MANUAL_FIELDS = [
   ["totalWorkingDays", "Total Working Days"],
   ["lopDays", "LOP Days"],
   ["otherDeductions", "Other Deductions"]
 ];
 
-const getEmployeeKey = (value) => String(value ?? "");
+const normalizeEmployeeIdentifier = (value) =>
+  String(value ?? "").trim().toUpperCase();
+const buildRollingPayrollPeriods = (endMonth, endYear, periodCount) => {
+  const monthIndex = PAYROLL_MONTHS.findIndex(
+    (monthName) => monthName === String(endMonth ?? "").trim()
+  );
+  const normalizedYear = Number(endYear);
+  const normalizedPeriodCount = Math.max(1, Number(periodCount) || 1);
+
+  if (monthIndex < 0 || !Number.isFinite(normalizedYear)) {
+    return [];
+  }
+
+  const periods = [];
+
+  for (let offset = 0; offset < normalizedPeriodCount; offset += 1) {
+    const periodDate = new Date(normalizedYear, monthIndex - offset, 1);
+
+    periods.push({
+      month: PAYROLL_MONTHS[periodDate.getMonth()],
+      year: periodDate.getFullYear(),
+    });
+  }
+
+  return periods;
+};
+const formatPayrollPeriodLabel = (period = {}) =>
+  `${String(period.month ?? "").trim()} ${String(period.year ?? "").trim()}`.trim();
+
+const formatPayrollPeriodListLabel = (periods) =>
+  (Array.isArray(periods) ? periods : [])
+    .map(formatPayrollPeriodLabel)
+    .filter(Boolean)
+    .join(" | ");
+
+const formatPayrollPeriodCountLabel = (count) => {
+  const normalizedCount = Math.max(1, Number(count) || 1);
+  return `${normalizedCount} ${normalizedCount === 1 ? "Month" : "Months"}`;
+};
 const getPayslipEmployeeKey = (payslip) =>
-  getEmployeeKey(
+  normalizeEmployeeIdentifier(
     payslip?.employeeId ??
     payslip?.employee_Id ??
     payslip?.employeeID ??
@@ -43,6 +85,523 @@ const getPayslipId = (payslip) =>
   payslip?.paySlipID ??
   payslip?.paySlip_Id ??
   payslip?.payslip_Id;
+
+const isDevMode = Boolean(import.meta.env.DEV);
+const logPayrollTiming = (label, payload) => {
+  if (isDevMode) {
+    console.info(label, payload);
+  }
+};
+
+const logBulkBatchStart = (batchIndex, periodLabel, normalizedMonth, normalizedYear, payload, batch) => {
+  if (!isDevMode) {
+    return;
+  }
+
+  console.group(`[Payroll] BULK BATCH ${batchIndex} START`);
+  console.info("Batch index:", batchIndex);
+  console.info("Periods:", periodLabel);
+  console.info("Batch size:", batch.length);
+  console.info("Employee IDs:", batch);
+  console.info("Selected month:", normalizedMonth);
+  console.info("Selected year:", normalizedYear);
+  console.info("Endpoint:", API_ENDPOINTS.payroll.generateAll);
+  console.info("Payload:", payload);
+  console.groupEnd();
+};
+
+const logBulkBatchSuccess = (batchIndex, periodLabel, batch, response, batchSummary) => {
+  if (!isDevMode) {
+    return;
+  }
+
+  console.group(`[Payroll] BULK BATCH ${batchIndex} SUCCESS`);
+  console.info("Periods:", periodLabel);
+  console.info("HTTP status:", response?.status);
+  console.info("Raw response:", response?.data);
+  console.info("Batch size:", batch.length);
+  console.info("Parsed generated count:", batchSummary.generatedCount);
+  console.info("Parsed skipped count:", batchSummary.skippedCount);
+  console.info("Parsed failed count:", batchSummary.failedCount);
+  console.info("Parsed failed employee IDs:", batchSummary.failedEmployeeIds);
+  console.info("Failure details:", batchSummary.failureDetails);
+  console.groupEnd();
+};
+
+const logBulkBatchError = (batchIndex, periodLabel, batch, error) => {
+  if (!isDevMode) {
+    return;
+  }
+
+  console.group(`[Payroll] BULK BATCH ${batchIndex} ERROR`);
+  console.error("Periods:", periodLabel);
+  console.error("HTTP status:", error?.response?.status);
+  console.error("Status text:", error?.response?.statusText);
+  console.error("API response:", error?.response?.data);
+  console.error("Axios message:", error?.message);
+  console.error("Axios code:", error?.code);
+  console.error("Request URL:", error?.config?.url);
+  console.error("Request method:", error?.config?.method);
+  console.error("Batch size:", batch.length);
+  console.error("Batch employee IDs:", batch);
+  console.groupEnd();
+};
+
+const logBulkGenerationFinalSummary = ({
+  totalEmployees,
+  periodCount,
+  totalRequests,
+  generatedCount,
+  skippedCount,
+  failedCount,
+  failedEmployeeIds,
+  failedBatches,
+}) => {
+  if (!isDevMode) {
+    return;
+  }
+
+  console.group("[Payroll] FINAL BULK GENERATION SUMMARY");
+  console.info("Total selected employees:", totalEmployees);
+  console.info("Period count:", periodCount);
+  console.info("Total request jobs:", totalRequests);
+  console.info("Generated:", generatedCount);
+  console.info("Skipped:", skippedCount);
+  console.info("Failed:", failedCount);
+  console.info("Failed employees:", failedEmployeeIds);
+  console.info("Failed batches:", failedBatches);
+  console.info("Processed count:", generatedCount + skippedCount + failedCount);
+  console.info(
+    "Expected count:",
+    totalEmployees * Math.max(1, Number(periodCount) || 1)
+  );
+  console.groupEnd();
+};
+
+const runWithConcurrencyLimit = async (items, limit, worker) => {
+  const queue = [...items];
+  const workerCount = Math.max(1, Math.min(limit || 1, queue.length));
+
+  let nextIndex = 0;
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (true) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+
+      if (currentIndex >= queue.length) {
+        break;
+      }
+
+      await worker(queue[currentIndex]);
+    }
+  });
+
+  await Promise.all(workers);
+};
+
+const formatFailureSummary = (failedItems) => {
+  if (!failedItems.length) {
+    return "";
+  }
+
+  const preview = failedItems
+    .slice(0, MAX_FAILED_ITEMS_TO_SHOW)
+    .map((item) => item.label)
+    .join(", ");
+  const remaining = failedItems.length - MAX_FAILED_ITEMS_TO_SHOW;
+
+  return `Failed employees: ${preview}${remaining > 0 ? ` +${remaining} more` : ""}`;
+};
+
+const chunkArray = (items, batchSize) => {
+  const source = Array.isArray(items) ? items : [];
+  const size = Math.max(1, Number(batchSize) || 1);
+  const chunks = [];
+
+  for (let index = 0; index < source.length; index += size) {
+    chunks.push(source.slice(index, index + size));
+  }
+
+  return chunks;
+};
+
+const extractBulkBatchFailureInfo = (responseData) => {
+  const source =
+    responseData && typeof responseData === "object" && !Array.isArray(responseData)
+      ? responseData
+      : {};
+
+  const failedEmployeeDetails = new Map();
+  const failureDetails = [];
+
+  const registerFailedEmployee = (employeeId, detail = "") => {
+    const normalizedEmployeeId = normalizeEmployeeIdentifier(employeeId);
+
+    if (!normalizedEmployeeId) {
+      return;
+    }
+
+    const existingDetail = failedEmployeeDetails.get(normalizedEmployeeId) || "";
+
+    if (!failedEmployeeDetails.has(normalizedEmployeeId)) {
+      failedEmployeeDetails.set(normalizedEmployeeId, detail);
+      return;
+    }
+
+    if (detail && !existingDetail) {
+      failedEmployeeDetails.set(normalizedEmployeeId, detail);
+    }
+  };
+
+  const collectEntry = (entry) => {
+    if (entry == null) {
+      return;
+    }
+
+    if (typeof entry === "string" || typeof entry === "number") {
+      const normalizedEntry = normalizeEmployeeIdentifier(entry);
+
+      if (normalizedEntry) {
+        registerFailedEmployee(normalizedEntry);
+      }
+
+      return;
+    }
+
+    if (typeof entry !== "object") {
+      return;
+    }
+
+    const employeeId = String(
+      entry.employeeId ??
+        entry.employee_Id ??
+        entry.employee_id ??
+        entry.employeeID ??
+        entry.employeeCode ??
+        entry.id ??
+        entry.employee ??
+        entry.label ??
+        ""
+    ).trim();
+    const normalizedEmployeeId = normalizeEmployeeIdentifier(employeeId);
+
+    const detail = String(
+      entry.message ??
+        entry.Message ??
+        entry.error ??
+        entry.Error ??
+        entry.reason ??
+        entry.Reason ??
+        entry.detail ??
+        entry.Detail ??
+        ""
+    ).trim();
+
+    if (normalizedEmployeeId) {
+      registerFailedEmployee(normalizedEmployeeId, detail);
+    } else if (detail) {
+      failureDetails.push(detail);
+    }
+  };
+
+  const candidateCollections = [];
+
+  if (Array.isArray(responseData)) {
+    candidateCollections.push(responseData);
+  }
+
+  if (Array.isArray(source.data)) {
+    candidateCollections.push(source.data);
+  }
+
+  candidateCollections.push(
+    source.failedEmployeeIds,
+    source.failedEmployees,
+    source.failedIds,
+    source.errors,
+    source.data?.failedEmployeeIds,
+    source.data?.failedEmployees,
+    source.data?.failedIds,
+    source.data?.errors
+  );
+
+  candidateCollections.forEach((collection) => {
+    if (Array.isArray(collection)) {
+      collection.forEach(collectEntry);
+      return;
+    }
+
+    if (collection !== undefined && collection !== null) {
+      collectEntry(collection);
+    }
+  });
+
+  const failedEmployeeIds = Array.from(failedEmployeeDetails.keys());
+  const alignedFailureDetails = failedEmployeeIds.map(
+    (employeeId) => failedEmployeeDetails.get(employeeId) || ""
+  );
+
+  if (failureDetails.length > 0) {
+    alignedFailureDetails.push(...failureDetails);
+  }
+
+  const messageCandidates = [
+    source.message,
+    source.Message,
+    source.error,
+    source.Error,
+    source.title,
+    source.Title,
+    source.detail,
+    source.Detail,
+    source.exceptionMessage,
+  ]
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean);
+
+  return {
+    message: messageCandidates[0] || "",
+    failedEmployeeIds,
+    failureDetails: alignedFailureDetails,
+  };
+};
+
+const collectEmployeeIdsFromCollections = (...collections) => {
+  const employeeIds = new Set();
+
+  const visit = (entry) => {
+    if (entry == null) {
+      return;
+    }
+
+    if (Array.isArray(entry)) {
+      entry.forEach(visit);
+      return;
+    }
+
+    if (typeof entry === "string" || typeof entry === "number") {
+      const normalizedEntry = normalizeEmployeeIdentifier(entry);
+
+      if (normalizedEntry) {
+        employeeIds.add(normalizedEntry);
+      }
+
+      return;
+    }
+
+    if (typeof entry !== "object") {
+      return;
+    }
+
+    const employeeId = String(
+      entry.employeeId ??
+        entry.employee_Id ??
+        entry.employee_id ??
+        entry.employeeID ??
+        entry.employeeCode ??
+        entry.id ??
+        entry.employee ??
+        entry.label ??
+        ""
+    ).trim();
+    const normalizedEmployeeId = normalizeEmployeeIdentifier(employeeId);
+
+    if (normalizedEmployeeId) {
+      employeeIds.add(normalizedEmployeeId);
+    }
+  };
+
+  collections.forEach(visit);
+
+  return Array.from(employeeIds);
+};
+
+const toNonNegativeNumber = (...values) => {
+  for (const value of values) {
+    const normalizedValue = Number(value);
+
+    if (Number.isFinite(normalizedValue) && normalizedValue >= 0) {
+      return normalizedValue;
+    }
+  }
+
+  return null;
+};
+
+const extractBulkGenerationSummary = (responseData, batch = []) => {
+  const source =
+    responseData && typeof responseData === "object" && !Array.isArray(responseData)
+      ? responseData
+      : {};
+  const nestedSource =
+    source.data && typeof source.data === "object" && !Array.isArray(source.data)
+      ? source.data
+      : {};
+  const summarySource = { ...nestedSource, ...source };
+  const failedInfo = extractBulkBatchFailureInfo(summarySource);
+  const batchSize = Array.isArray(batch) ? batch.length : 0;
+
+  const skippedEmployeeIds = collectEmployeeIdsFromCollections(
+    summarySource.skippedEmployeeIds,
+    summarySource.skippedEmployees,
+    summarySource.skippedIds,
+    summarySource.duplicateEmployeeIds,
+    summarySource.duplicateEmployees,
+    summarySource.duplicateIds,
+    summarySource.data?.skippedEmployeeIds,
+    summarySource.data?.skippedEmployees,
+    summarySource.data?.skippedIds,
+    summarySource.data?.duplicateEmployeeIds,
+    summarySource.data?.duplicateEmployees,
+    summarySource.data?.duplicateIds
+  );
+
+  const rawGeneratedCount = toNonNegativeNumber(
+    summarySource.generatedCount,
+    summarySource.generated,
+    summarySource.successCount,
+    summarySource.createdCount,
+    summarySource.processedCount,
+    summarySource.data?.generatedCount,
+    summarySource.data?.generated,
+    summarySource.data?.successCount,
+    summarySource.data?.createdCount,
+    summarySource.data?.processedCount
+  );
+
+  const rawSkippedCount = toNonNegativeNumber(
+    summarySource.skippedCount,
+    summarySource.skipped,
+    summarySource.duplicateCount,
+    summarySource.duplicatesCount,
+    summarySource.data?.skippedCount,
+    summarySource.data?.skipped,
+    summarySource.data?.duplicateCount,
+    summarySource.data?.duplicatesCount
+  );
+
+  const rawFailedCount = toNonNegativeNumber(
+    summarySource.failedCount,
+    summarySource.failed,
+    summarySource.errorCount,
+    summarySource.data?.failedCount,
+    summarySource.data?.failed,
+    summarySource.data?.errorCount
+  );
+
+  const failedEmployeeCount = failedInfo.failedEmployeeIds.length;
+  const skippedEmployeeCount = skippedEmployeeIds.length;
+  const hasAnyExplicitCounts =
+    rawGeneratedCount != null ||
+    rawSkippedCount != null ||
+    rawFailedCount != null ||
+    failedEmployeeCount > 0 ||
+    skippedEmployeeCount > 0;
+
+  let generatedCount = 0;
+  let skippedCount = 0;
+  let failedCount = 0;
+
+  if (!hasAnyExplicitCounts && batchSize > 0) {
+    generatedCount = batchSize;
+  } else {
+    skippedCount = Math.max(rawSkippedCount ?? 0, skippedEmployeeCount);
+    failedCount = Math.max(rawFailedCount ?? 0, failedEmployeeCount);
+
+    if (rawGeneratedCount == null) {
+      generatedCount = Math.max(batchSize - skippedCount - failedCount, 0);
+    } else {
+      generatedCount = Math.max(rawGeneratedCount, 0);
+    }
+
+    const processedCount = generatedCount + skippedCount + failedCount;
+
+    if (batchSize > 0 && processedCount > batchSize) {
+      if (isDevMode) {
+        console.warn("[Payroll] Bulk batch count validation warning", {
+          batchSize,
+          processedCount,
+          generatedCount,
+          skippedCount,
+          failedCount,
+          rawResponse: responseData,
+        });
+      }
+
+      skippedCount = Math.min(skippedCount, batchSize);
+      failedCount = Math.min(failedCount, Math.max(batchSize - skippedCount, 0));
+      generatedCount = Math.max(batchSize - skippedCount - failedCount, 0);
+    }
+  }
+
+  const messageCandidates = [
+    summarySource.message,
+    summarySource.Message,
+    summarySource.error,
+    summarySource.Error,
+    summarySource.title,
+    summarySource.Title,
+    summarySource.detail,
+    summarySource.Detail,
+    summarySource.exceptionMessage,
+    summarySource.data?.message,
+    summarySource.data?.Message,
+    summarySource.data?.error,
+    summarySource.data?.Error,
+    summarySource.data?.title,
+    summarySource.data?.Title,
+    summarySource.data?.detail,
+    summarySource.data?.Detail,
+    summarySource.data?.exceptionMessage,
+  ]
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean);
+
+  return {
+    message: messageCandidates[0] || failedInfo.message || "",
+    generatedCount,
+    skippedCount,
+    failedCount,
+    failedEmployeeIds: failedInfo.failedEmployeeIds,
+    skippedEmployeeIds,
+    failureDetails: failedInfo.failureDetails,
+  };
+};
+
+const isValidPayrollMonth = (value) =>
+  PAYROLL_MONTHS.includes(String(value ?? "").trim());
+
+const isValidPayrollYear = (value) => {
+  const normalizedYear = Number(value);
+  return Number.isInteger(normalizedYear) && normalizedYear >= 1900 && normalizedYear <= 2100;
+};
+
+const formatBulkBatchFailureSummary = (failedBatches) => {
+  if (!failedBatches.length) {
+    return "";
+  }
+
+  const preview = failedBatches
+    .slice(0, MAX_FAILED_ITEMS_TO_SHOW)
+    .map((batch) => {
+      const employeeIds = Array.isArray(batch.employeeIds) ? batch.employeeIds : [];
+      const employeePreview = employeeIds.slice(0, 3).join(", ");
+      const remainingEmployees = employeeIds.length - 3;
+      const employeeLabel = employeePreview
+        ? `${employeePreview}${remainingEmployees > 0 ? ` +${remainingEmployees} more` : ""}`
+        : "unknown employees";
+      const message = batch.message ? `: ${batch.message}` : "";
+
+      const periodSuffix = batch.periodLabel ? ` - ${batch.periodLabel}` : "";
+
+      return `Batch ${batch.batchIndex}${periodSuffix} (${employeeLabel})${message}`;
+    })
+    .join(" | ");
+
+  const remaining = failedBatches.length - MAX_FAILED_ITEMS_TO_SHOW;
+
+  return `${failedBatches.length} batch${failedBatches.length === 1 ? "" : "es"} failed.${preview ? ` ${preview}${remaining > 0 ? ` | +${remaining} more` : ""}` : ""}`;
+};
 
 const getPayrollApiErrorMessage = (
   error,
@@ -190,6 +749,8 @@ function Payroll() {
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 250);
+  const [employeePage, setEmployeePage] = useState(1);
+  const [employeePageSize, setEmployeePageSize] = useState(DEFAULT_PAYROLL_PAGE_SIZE);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -197,6 +758,11 @@ function Payroll() {
   const [month, setMonth] = useState(currentMonthName);
   const [selectedPeriod, setSelectedPeriod] = useState(1);
   const [generating, setGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState({
+    completed: 0,
+    total: 0,
+  });
+  const generationLockRef = useRef(false);
 
   const [generationMode, setGenerationMode] = useState("auto");
   const [deduction, setDeduction] = useState("");
@@ -208,9 +774,10 @@ function Payroll() {
   const [recentFilterYear, setRecentFilterYear] = useState(String(currentYearValue));
 
   const [recentPage, setRecentPage] = useState(1);
-  const RECENT_ROWS_PER_PAGE = 30;
+  const [recentPageSize, setRecentPageSize] = useState(DEFAULT_PAYROLL_PAGE_SIZE);
   const [recentLoading, setRecentLoading] = useState(false);
   const [isSalaryDownloading, setIsSalaryDownloading] = useState(false);
+  const [isSendingPayslipEmails, setIsSendingPayslipEmails] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deletingPayslipId, setDeletingPayslipId] = useState(null);
 
@@ -256,9 +823,7 @@ function Payroll() {
     const timerLabel = "payroll:recent-payslips-fetch";
 
     try {
-      if (!silent) {
-        setRecentLoading(true);
-      }
+      setRecentLoading(true);
 
       startPerformanceTimer(timerLabel);
 
@@ -268,11 +833,12 @@ function Payroll() {
       });
 
       setAllPayslips(normalizePayslipRecords(res.data, months));
+      return true;
     } catch (err) {
       canceled = err?.code === "ERR_CANCELED";
 
       if (canceled) {
-        return;
+        return null;
       }
 
       logPerformanceError("Recent payslips fetch error:", err.response?.data || err.message);
@@ -284,10 +850,12 @@ function Payroll() {
       if (clearOnError) {
         setAllPayslips([]);
       }
+
+      return false;
     } finally {
       endPerformanceTimer(timerLabel);
 
-      if (!canceled && !silent) {
+      if (!canceled) {
         setRecentLoading(false);
       }
     }
@@ -304,9 +872,7 @@ function Payroll() {
     const timerLabel = "payroll:employee-payslips-fetch";
 
     try {
-      if (!silent) {
-        setRecentLoading(true);
-      }
+      setRecentLoading(true);
 
       startPerformanceTimer(timerLabel);
 
@@ -335,7 +901,7 @@ function Payroll() {
     } finally {
       endPerformanceTimer(timerLabel);
 
-      if (!canceled && !silent) {
+      if (!canceled) {
         setRecentLoading(false);
       }
     }
@@ -368,22 +934,6 @@ function Payroll() {
     setRecentPage(1);
   }, [selectedEmployees]);
 
-  const getMonthYearList = (count, selectedMonth, selectedYear) => {
-    const selectedMonthIndex = months.findIndex((m) => m === selectedMonth);
-    const result = [];
-
-    for (let i = 0; i < count; i++) {
-      let monthIndex = selectedMonthIndex - i;
-      let currentYear = Number(selectedYear);
-      while (monthIndex < 0) {
-        monthIndex += 12;
-        currentYear -= 1;
-      }
-      result.push({ month: months[monthIndex], year: currentYear });
-    }
-    return result;
-  };
-
   const filteredEmployees = useMemo(() => {
     const keyword = debouncedSearch.toLowerCase();
 
@@ -396,19 +946,90 @@ function Payroll() {
     });
   }, [employees, debouncedSearch]);
 
+  const totalEmployeePages = Math.max(
+    1,
+    Math.ceil(filteredEmployees.length / employeePageSize)
+  );
+
+  const paginatedEmployees = useMemo(() => {
+    const startIndex = (employeePage - 1) * employeePageSize;
+    const endIndex = startIndex + employeePageSize;
+
+    return filteredEmployees.slice(startIndex, endIndex);
+  }, [employeePage, employeePageSize, filteredEmployees]);
+
+  useEffect(() => {
+    setEmployeePage(1);
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    if (employeePage > totalEmployeePages) {
+      setEmployeePage(totalEmployeePages);
+    }
+  }, [employeePage, totalEmployeePages]);
+
+  const handleEmployeePageSizeChange = (nextPageSize) => {
+    setEmployeePageSize(nextPageSize);
+    setEmployeePage(1);
+  };
+
   const employeesById = useMemo(() => {
     // Optimization: avoid repeated employees.find calls while rendering payslip rows.
-    return new Map(employees.map((emp) => [getEmployeeKey(emp.employee_Id), emp]));
+    return new Map(
+      employees.map((emp) => [normalizeEmployeeIdentifier(emp.employee_Id), emp])
+    );
   }, [employees]);
 
   const selectedEmployeeSet = useMemo(
-    () => new Set(selectedEmployees.map(getEmployeeKey)),
+    () => new Set(selectedEmployees.map(normalizeEmployeeIdentifier).filter(Boolean)),
     [selectedEmployees]
   );
 
+  const availableEmployeeIds = useMemo(() => {
+    return Array.from(
+      new Set(
+        employees
+          .map((emp) => normalizeEmployeeIdentifier(emp.employee_Id))
+          .filter(Boolean)
+      )
+    );
+  }, [employees]);
+
+  const availableEmployeeIdSet = useMemo(
+    () => new Set(availableEmployeeIds),
+    [availableEmployeeIds]
+  );
+
+  useEffect(() => {
+    if (selectedEmployees.length === 0) {
+      return;
+    }
+
+    setSelectedEmployees((prev) => {
+      if (prev.length === 0) {
+        return prev;
+      }
+
+      const next = prev.filter((employeeId) =>
+        availableEmployeeIdSet.has(normalizeEmployeeIdentifier(employeeId))
+      );
+
+      if (
+        next.length === prev.length &&
+        next.every((employeeId, index) =>
+          normalizeEmployeeIdentifier(employeeId) === normalizeEmployeeIdentifier(prev[index])
+        )
+      ) {
+        return prev;
+      }
+
+      return next;
+    });
+  }, [availableEmployeeIdSet, selectedEmployees.length]);
+
   const selectedEmployeeObjects = useMemo(() => {
     return selectedEmployees
-      .map((employeeId) => employeesById.get(getEmployeeKey(employeeId)))
+      .map((employeeId) => employeesById.get(normalizeEmployeeIdentifier(employeeId)))
       .filter(Boolean);
   }, [employeesById, selectedEmployees]);
 
@@ -424,7 +1045,7 @@ function Payroll() {
     const data = filteredPayslips;
 
     if (selectedEmployees.length === 1) {
-      const selectedEmployeeId = getEmployeeKey(selectedEmployees[0]);
+      const selectedEmployeeId = normalizeEmployeeIdentifier(selectedEmployees[0]);
       return data.filter((p) => getPayslipEmployeeKey(p) === selectedEmployeeId);
     }
 
@@ -436,21 +1057,26 @@ function Payroll() {
   }, [filteredPayslips, selectedEmployeeSet, selectedEmployees]);
 
   const recentTotalCount = displayedPayslips.length;
-  const totalRecentPages = Math.max(1, Math.ceil(recentTotalCount / RECENT_ROWS_PER_PAGE));
+  const totalRecentPages = Math.max(1, Math.ceil(recentTotalCount / recentPageSize));
 
   const paginatedRecentPayslips = useMemo(() => {
-    const startIndex = (recentPage - 1) * RECENT_ROWS_PER_PAGE;
-    const endIndex = startIndex + RECENT_ROWS_PER_PAGE;
+    const startIndex = (recentPage - 1) * recentPageSize;
+    const endIndex = startIndex + recentPageSize;
     return displayedPayslips.slice(startIndex, endIndex);
-  }, [displayedPayslips, recentPage]);
+  }, [displayedPayslips, recentPage, recentPageSize]);
 
   useEffect(() => {
     if (recentPage > totalRecentPages) setRecentPage(totalRecentPages);
   }, [recentPage, totalRecentPages]);
 
+  const handleRecentPageSizeChange = (nextPageSize) => {
+    setRecentPageSize(nextPageSize);
+    setRecentPage(1);
+  };
+
   const handleToggleEmployee = (employeeId) => {
     if (generating) return;
-    const selectedEmployeeId = getEmployeeKey(employeeId);
+    const selectedEmployeeId = normalizeEmployeeIdentifier(employeeId);
     setSelectedEmployees((prev) => {
       const alreadySelected = prev.includes(selectedEmployeeId);
       let updated = alreadySelected
@@ -462,90 +1088,555 @@ function Payroll() {
 
   const handleSelectAll = () => {
     if (generating) return;
-    const visibleIds = filteredEmployees.map((emp) => getEmployeeKey(emp.employee_Id));
-    const visibleIdSet = new Set(visibleIds);
-    const allVisibleSelected =
-      visibleIds.length > 0 && visibleIds.every((id) => selectedEmployeeSet.has(id));
+    const allAvailableSelected =
+      availableEmployeeIds.length > 0 &&
+      availableEmployeeIds.every((id) => selectedEmployeeSet.has(id));
 
-    const updated = allVisibleSelected
-      ? selectedEmployees.filter((id) => !visibleIdSet.has(id))
-      : [...new Set([...selectedEmployees, ...visibleIds])];
-
-    setSelectedEmployees(updated);
+    setSelectedEmployees(allAvailableSelected ? [] : availableEmployeeIds);
   };
 
-  const allFilteredSelected =
-    filteredEmployees.length > 0 &&
-    filteredEmployees.every((emp) => selectedEmployeeSet.has(getEmployeeKey(emp.employee_Id)));
+  const allEmployeesSelected =
+    availableEmployeeIds.length > 0 &&
+    availableEmployeeIds.every((id) =>
+      selectedEmployeeSet.has(normalizeEmployeeIdentifier(id))
+    );
 
   const handleCardClick = (emp) => {
     if (generating) return;
-    setSelectedEmployees([getEmployeeKey(emp.employee_Id)]);
+    setSelectedEmployees([normalizeEmployeeIdentifier(emp.employee_Id)]);
   };
 
   const handleGeneratePayslip = async () => {
-    if (generating) return;
+    if (generating || generationLockRef.current) {
+      return;
+    }
 
-    const employeeIds = selectedEmployees;
+    const employeeIds = Array.from(
+      new Set(selectedEmployees.map(normalizeEmployeeIdentifier).filter(Boolean))
+    );
 
     if (employeeIds.length === 0) {
       setErrorMsg("Please select employee(s)");
       return;
     }
 
-    try {
-      setGenerating(true);
-      setSuccessMsg("");
-      setErrorMsg("");
+    const normalizedMonth = String(month ?? "").trim();
+    const normalizedYear = Number(year);
+    const payrollPeriodLabel = `${normalizedMonth} ${normalizedYear}`;
 
-      if (generationMode === "auto") {
-        const periods = getMonthYearList(selectedPeriod, month, year);
-        const deductionValue = Number(deduction) || 0;
+    if (!isValidPayrollMonth(normalizedMonth) || !isValidPayrollYear(normalizedYear)) {
+      setErrorMsg("Please select a valid payroll month and year.");
+      return;
+    }
 
-        for (const employeeId of employeeIds) {
-          for (const period of periods) {
-            await api.post(API_ENDPOINTS.payroll.generate, null, {
-              params: {
-                employeeId,
-                year: period.year,
-                month: period.month,
-                OtherDeductions: deductionValue,
-                TDSPercentage: Number(tdsPercentage) || 0
-              },
-              headers: { Authorization: `Bearer ${token}` }
+    const totalEmployees = employeeIds.length;
+
+    if (generationMode === "auto") {
+      const bulkBatches = chunkArray(employeeIds, PAYSLIP_BATCH_SIZE);
+      const selectedStandardPeriod =
+        STANDARD_PERIODS.includes(Number(selectedPeriod))
+          ? Number(selectedPeriod)
+          : 1;
+      const rollingPeriods = buildRollingPayrollPeriods(
+        normalizedMonth,
+        normalizedYear,
+        selectedStandardPeriod
+      );
+      const rollingPeriodLabel = formatPayrollPeriodListLabel(rollingPeriods);
+      const rollingPeriodCountLabel = formatPayrollPeriodCountLabel(
+        rollingPeriods.length
+      );
+      const bulkRequestMonths = rollingPeriods.map((period) => period.month);
+      const totalRequestJobs = bulkBatches.length;
+      const failedEmployeeIdSet = new Set();
+      const failedItemsByEmployeeId = new Map();
+      const failedBatches = [];
+      let generatedCount = 0;
+      let skippedCount = 0;
+      let failedCount = 0;
+      let completedRequestJobs = 0;
+      const generationStartedAt = performance.now();
+
+      try {
+        if (rollingPeriods.length === 0) {
+          setErrorMsg("Please select a valid payroll month and year.");
+          return;
+        }
+
+        generationLockRef.current = true;
+        setGenerating(true);
+        setSuccessMsg("");
+        setErrorMsg("");
+        setGenerationProgress({ completed: 0, total: totalRequestJobs });
+
+        logPayrollTiming("[Payroll] Bulk generation started", {
+          totalEmployees,
+          batchSize: PAYSLIP_BATCH_SIZE,
+          batchCount: bulkBatches.length,
+          periodCount: rollingPeriods.length,
+          selectedPeriod: selectedStandardPeriod,
+          month: normalizedMonth,
+          year: normalizedYear,
+        });
+
+        for (const [batchOffset, batch] of bulkBatches.entries()) {
+          const batchIndex = batchOffset + 1;
+          const batchStartedAt = performance.now();
+          const payload = {
+            year: normalizedYear,
+            employeeIds: batch,
+            months: bulkRequestMonths,
+          };
+
+          logBulkBatchStart(
+            batchIndex,
+            rollingPeriodLabel,
+            normalizedMonth,
+            normalizedYear,
+            payload,
+            batch
+          );
+          logPayrollTiming("[Payroll] Bulk batch started", {
+            batchIndex,
+            periodCount: rollingPeriods.length,
+            periodLabel: rollingPeriodLabel,
+            batchSize: batch.length,
+            completed: completedRequestJobs,
+            totalRequests: totalRequestJobs,
+          });
+
+          try {
+            console.info(
+              `[Payroll] Calling generate-all API for batch ${batchIndex}`,
+              {
+                periodLabel: rollingPeriodLabel,
+                batchSize: batch.length,
+                employeeIds: batch,
+                months: bulkRequestMonths,
+                month: normalizedMonth,
+                year: normalizedYear,
+              }
+            );
+            console.log("[Payroll] generate-all FINAL PAYLOAD", payload);
+
+            const response = await api.post(
+              API_ENDPOINTS.payroll.generateAll,
+              payload,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+              }
+            );
+
+            console.info(
+              `[Payroll] generate-all API returned for batch ${batchIndex}`,
+              {
+                periodLabel: rollingPeriodLabel,
+                status: response?.status,
+                data: response?.data,
+              }
+            );
+
+            const batchSummary = extractBulkGenerationSummary(response?.data, batch);
+            generatedCount += batchSummary.generatedCount;
+            skippedCount += batchSummary.skippedCount;
+            failedCount += batchSummary.failedCount;
+
+            batchSummary.failedEmployeeIds.forEach((employeeId, index) => {
+              const normalizedEmployeeId = normalizeEmployeeIdentifier(employeeId);
+
+              if (!normalizedEmployeeId || failedItemsByEmployeeId.has(normalizedEmployeeId)) {
+                return;
+              }
+
+              failedEmployeeIdSet.add(normalizedEmployeeId);
+              failedItemsByEmployeeId.set(normalizedEmployeeId, {
+                label: normalizedEmployeeId,
+                message:
+                  batchSummary.failureDetails[index] ||
+                  batchSummary.message ||
+                  `Failed to generate payslip for ${normalizedEmployeeId}.`,
+              });
+            });
+
+            if (batchSummary.skippedEmployeeIds.length > 0) {
+              logPayrollTiming("[Payroll] Bulk batch skipped employees", {
+                batchIndex,
+                periodLabel: rollingPeriodLabel,
+                skippedEmployeeIds: batchSummary.skippedEmployeeIds,
+                months: bulkRequestMonths,
+              });
+            }
+
+            logBulkBatchSuccess(batchIndex, rollingPeriodLabel, batch, response, batchSummary);
+
+            logPayrollTiming("[Payroll] Bulk batch finished", {
+              batchIndex,
+              periodCount: rollingPeriods.length,
+              periodLabel: rollingPeriodLabel,
+              batchSize: batch.length,
+              durationMs: Math.round(performance.now() - batchStartedAt),
+              completed: completedRequestJobs + 1,
+              totalRequests: totalRequestJobs,
+            });
+          } catch (error) {
+            const batchSummary = extractBulkGenerationSummary(
+              error?.response?.data,
+              batch
+            );
+            const batchFailedEmployeeIds =
+              batchSummary.failedEmployeeIds.length > 0
+                ? batchSummary.failedEmployeeIds
+                : batch.map(normalizeEmployeeIdentifier).filter(Boolean);
+            const errorMessage = getPayrollApiErrorMessage(
+              error,
+              "Failed to generate payslip(s)."
+            );
+            const batchFailedCount =
+              batchSummary.failedCount ||
+              batchFailedEmployeeIds.length ||
+              batch.length;
+
+            failedCount += batchFailedCount;
+
+            batchFailedEmployeeIds.forEach((employeeId) => {
+              const normalizedEmployeeId = normalizeEmployeeIdentifier(employeeId);
+
+              if (!normalizedEmployeeId) {
+                return;
+              }
+
+              failedEmployeeIdSet.add(normalizedEmployeeId);
+            });
+
+            failedBatches.push({
+              batchIndex,
+              periodLabel: rollingPeriodLabel,
+              employeeIds: batchFailedEmployeeIds,
+              message: batchSummary.message || errorMessage,
+              status: error?.response?.status ?? null,
+            });
+
+            logPerformanceError("Bulk payslip generation error:", {
+              batchIndex,
+              periodLabel: rollingPeriodLabel,
+              employeeIds: batchFailedEmployeeIds,
+              error: error?.response?.data || error?.message,
+            });
+
+            logBulkBatchError(batchIndex, rollingPeriodLabel, batch, error);
+
+            logPayrollTiming("[Payroll] Bulk batch failed", {
+              batchIndex,
+              periodCount: rollingPeriods.length,
+              periodLabel: rollingPeriodLabel,
+              batchSize: batch.length,
+              durationMs: Math.round(performance.now() - batchStartedAt),
+              message: batchSummary.message || errorMessage,
+            });
+          } finally {
+            completedRequestJobs += 1;
+            setGenerationProgress({
+              completed: Math.min(totalRequestJobs, completedRequestJobs),
+              total: totalRequestJobs,
             });
           }
         }
-        setSuccessMsg(`Payslips generated for ${employeeIds.length} employee(s) for ${selectedPeriod} month(s)`);
-      } else {
-        for (const employeeId of employeeIds) {
+
+        setRecentPage(1);
+        const finalFailedItems = Array.from(failedItemsByEmployeeId.values());
+        const finalFailedEmployeeIds = Array.from(failedEmployeeIdSet);
+        const totalDurationMs = Math.round(
+          performance.now() - generationStartedAt
+        );
+        const summaryParts = [];
+
+        if (generatedCount > 0) {
+          summaryParts.push(`${generatedCount} generated`);
+        }
+
+        if (skippedCount > 0) {
+          summaryParts.push(`${skippedCount} skipped`);
+        }
+
+        if (failedCount > 0) {
+          summaryParts.push(`${failedCount} failed`);
+        }
+
+        const successMessage = summaryParts.length > 0
+          ? `Payslip generation completed for ${totalEmployees} ${totalEmployees === 1 ? "employee" : "employees"} across ${rollingPeriodCountLabel}. (${summaryParts.join(", ")}).`
+          : `Payslips generated successfully for ${totalEmployees} ${totalEmployees === 1 ? "employee" : "employees"} across ${rollingPeriodCountLabel}.`;
+        const hasSuccessfulWork = generatedCount > 0 || skippedCount > 0;
+        const hasFailures = failedCount > 0 || failedBatches.length > 0;
+        const failureMessageParts = [];
+
+        if (failedBatches.length > 0) {
+          failureMessageParts.push(formatBulkBatchFailureSummary(failedBatches));
+        }
+
+        if (finalFailedItems.length > 0) {
+          failureMessageParts.push(formatFailureSummary(finalFailedItems));
+        }
+
+        const failureMessage =
+          failureMessageParts.length > 0
+            ? failureMessageParts.join(" | ")
+            : "Payslip generation failed. No payslips were generated.";
+
+        logBulkGenerationFinalSummary({
+          totalEmployees,
+          periodCount: rollingPeriods.length,
+          totalRequests: totalRequestJobs,
+          generatedCount,
+          skippedCount,
+          failedCount,
+          failedEmployeeIds: finalFailedEmployeeIds,
+          failedBatches,
+        });
+
+        logPayrollTiming("[Payroll] Bulk generation finished", {
+          totalEmployees,
+          periodCount: rollingPeriods.length,
+          totalRequests: totalRequestJobs,
+          generatedCount,
+          skippedCount,
+          failedCount,
+          totalDurationMs,
+        });
+
+        if (hasFailures) {
+          if (hasSuccessfulWork) {
+            setSuccessMsg(successMessage);
+          } else {
+            setSuccessMsg("");
+          }
+
+          setErrorMsg(
+            hasSuccessfulWork
+              ? failureMessage
+              : `Payslip generation failed. No payslips were generated.${
+                  failureMessage ? ` ${failureMessage}` : ""
+                }`
+          );
+        } else {
+          setSuccessMsg(successMessage);
+          setErrorMsg("");
+        }
+
+        const refreshSucceeded = await fetchRecentPayslips(undefined, {
+          silent: true,
+          clearOnError: false,
+        });
+
+        if (refreshSucceeded === false) {
+          const refreshErrorMessage = "Payslip list refresh failed.";
+
+          if (isDevMode) {
+            console.error(`[Payroll] ${refreshErrorMessage}`);
+          }
+
+          setErrorMsg((previousErrorMsg) =>
+            previousErrorMsg
+              ? `${previousErrorMsg} ${refreshErrorMessage}`
+              : refreshErrorMessage
+          );
+        }
+      } catch (error) {
+        logPerformanceError(
+          "Bulk Generate Error:",
+          error?.response?.data || error?.message
+        );
+        setErrorMsg(
+          getPayrollApiErrorMessage(
+            error,
+            "Failed to generate payslip(s)."
+          )
+        );
+      } finally {
+        setGenerating(false);
+        generationLockRef.current = false;
+        setGenerationProgress({ completed: 0, total: 0 });
+      }
+
+      return;
+    }
+
+    const manualPayloadBase = {
+      month: normalizedMonth,
+      year: normalizedYear,
+      totalWorkingDays: Number(manualForm.totalWorkingDays) || 0,
+      lopDays: Number(manualForm.lopDays) || 0,
+      otherDeductions: Number(manualForm.otherDeductions) || 0,
+    };
+
+    try {
+      generationLockRef.current = true;
+      setGenerating(true);
+      setSuccessMsg("");
+      setErrorMsg("");
+      setGenerationProgress({ completed: 0, total: totalEmployees });
+
+      let completedEmployees = 0;
+      const failedItems = [];
+      const generationStartedAt = performance.now();
+
+      const markEmployeeComplete = (failedItem = null) => {
+        completedEmployees += 1;
+        setGenerationProgress({
+          completed: completedEmployees,
+          total: totalEmployees,
+        });
+
+        if (failedItem) {
+          failedItems.push(failedItem);
+        }
+      };
+
+      const generateManualEmployee = async (employeeId) => {
+        const requestStartedAt = performance.now();
+
+        try {
           const payload = {
             employeeId,
-            month,
-            year: Number(year),
-            totalWorkingDays: Number(manualForm.totalWorkingDays) || 0,
-            lopDays: Number(manualForm.lopDays) || 0,
-            otherDeductions: Number(manualForm.otherDeductions) || 0
+            ...manualPayloadBase,
           };
 
           await api.post(API_ENDPOINTS.payroll.manualGenerate, payload, {
             headers: {
               Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json"
-            }
+              "Content-Type": "application/json",
+            },
           });
+
+          logPayrollTiming("[Payroll] Manual payslip request", {
+            employeeId,
+            durationMs: Math.round(performance.now() - requestStartedAt),
+          });
+
+          return null;
+        } catch (error) {
+          const errorMessage = getPayrollApiErrorMessage(
+            error,
+            "Failed to generate payslip."
+          );
+
+          logPerformanceError("Manual payslip generation error:", {
+            employeeId,
+            error: error.response?.data || error.message,
+          });
+
+          logPayrollTiming("[Payroll] Manual payslip request failed", {
+            employeeId,
+            durationMs: Math.round(performance.now() - requestStartedAt),
+            message: errorMessage,
+          });
+
+          return {
+            label: employeeId,
+            message: errorMessage,
+          };
         }
-        setSuccessMsg(`Manual payslips generated for ${employeeIds.length} employee(s)`);
-        setManualForm({ totalWorkingDays: "", lopDays: "", otherDeductions: "" });
+      };
+
+      logPayrollTiming("[Payroll] Manual generation started", {
+        totalEmployees,
+        batchSize: PAYSLIP_BATCH_SIZE,
+        concurrency: PAYSLIP_CONCURRENCY,
+      });
+
+      for (
+        let batchStart = 0;
+        batchStart < employeeIds.length;
+        batchStart += PAYSLIP_BATCH_SIZE
+      ) {
+        const batchIndex = Math.floor(batchStart / PAYSLIP_BATCH_SIZE) + 1;
+        const batch = employeeIds.slice(
+          batchStart,
+          batchStart + PAYSLIP_BATCH_SIZE
+        );
+        const batchStartedAt = performance.now();
+
+        logPayrollTiming("[Payroll] Manual batch started", {
+          batchIndex,
+          batchSize: batch.length,
+          completed: completedEmployees,
+          totalEmployees,
+        });
+
+        await runWithConcurrencyLimit(batch, PAYSLIP_CONCURRENCY, async (employeeId) => {
+          let failedItem = null;
+
+          try {
+            failedItem = await generateManualEmployee(employeeId);
+          } catch (error) {
+            logPerformanceError("Manual payslip generation error:", {
+              employeeId,
+              error: error.response?.data || error.message,
+            });
+
+            failedItem = {
+              label: employeeId,
+              message: getPayrollApiErrorMessage(
+                error,
+                "Failed to generate payslip."
+              ),
+            };
+          } finally {
+            markEmployeeComplete(failedItem);
+          }
+        });
+
+        logPayrollTiming("[Payroll] Manual batch finished", {
+          batchIndex,
+          batchSize: batch.length,
+          durationMs: Math.round(performance.now() - batchStartedAt),
+          completed: completedEmployees,
+          totalEmployees,
+        });
       }
 
       setRecentPage(1);
       await fetchRecentPayslips();
-    } catch (err) {
-      logPerformanceError("Generate Error:", err.response?.data || err.message);
-      setErrorMsg(err.response?.data?.message || "Failed to generate payslip(s)");
+
+      const totalDurationMs = Math.round(
+        performance.now() - generationStartedAt
+      );
+      const failureSummary = formatFailureSummary(failedItems);
+
+      logPayrollTiming("[Payroll] Generation finished", {
+        totalEmployees,
+        completedEmployees,
+        failedCount: failedItems.length,
+        totalDurationMs,
+      });
+
+      setManualForm({
+        totalWorkingDays: "",
+        lopDays: "",
+        otherDeductions: "",
+      });
+
+      if (failedItems.length > 0) {
+        setSuccessMsg(
+          `Manual payslips generated for ${totalEmployees} employee(s) for ${payrollPeriodLabel}.`
+        );
+        setErrorMsg(failureSummary);
+      } else {
+        setSuccessMsg(
+          `Manual payslips generated for ${totalEmployees} employee(s) for ${payrollPeriodLabel}.`
+        );
+      }
+    } catch (error) {
+      logPerformanceError("Generate Error:", error.response?.data || error.message);
+      setErrorMsg(
+        getPayrollApiErrorMessage(error, "Failed to generate payslip(s)")
+      );
     } finally {
       setGenerating(false);
+      generationLockRef.current = false;
+      setGenerationProgress({ completed: 0, total: 0 });
     }
   };
 
@@ -582,7 +1673,9 @@ function Payroll() {
   };
 
   const refreshPayslipsAfterDelete = useCallback(async () => {
-    const selectedEmployeeIds = selectedEmployees.map(getEmployeeKey).filter(Boolean);
+    const selectedEmployeeIds = selectedEmployees
+      .map(normalizeEmployeeIdentifier)
+      .filter(Boolean);
 
     if (selectedEmployeeIds.length === 1) {
       await fetchEmployeePayslips(
@@ -747,6 +1840,61 @@ function Payroll() {
     }
   };
 
+  const handleSendPayslipEmails = async () => {
+    if (isSendingPayslipEmails) {
+      return;
+    }
+
+    try {
+      setIsSendingPayslipEmails(true);
+      setSuccessMsg("");
+      setErrorMsg("");
+
+      const emailMonth =
+        recentFilterMonth === "All" ? month : recentFilterMonth;
+      const emailYear =
+        recentFilterYear === "All" ? year : Number(recentFilterYear);
+
+      const response = await api.post(
+        API_ENDPOINTS.payroll.sendAllEmails,
+        null,
+        {
+          params: {
+            month: emailMonth,
+            year: Number(emailYear),
+          },
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const responseData = response?.data;
+      const successMessage =
+        (typeof responseData === "string" && responseData.trim()) ||
+        responseData?.message ||
+        responseData?.Message ||
+        responseData?.data?.message ||
+        "Payslip emails sent successfully.";
+
+      setSuccessMsg(successMessage);
+    } catch (error) {
+      logPerformanceError(
+        "Send payslip emails error:",
+        error.response?.data || error.message
+      );
+
+      setErrorMsg(
+        getPayrollApiErrorMessage(
+          error,
+          "Failed to send payslip emails."
+        )
+      );
+    } finally {
+      setIsSendingPayslipEmails(false);
+    }
+  };
+
   const isBulkMode = selectedEmployees.length > 1;
   const previewEmployee = selectedEmployees.length === 1 ? selectedEmployeeObjects[0] : null;
   const generationBadgeText = selectedEmployees.length > 0
@@ -790,6 +1938,11 @@ function Payroll() {
     "-";
   const deleteTargetMonth = deleteTarget?.month || "-";
   const deleteTargetYear = deleteTarget?.year || "-";
+  const selectedPayrollPeriodCount = STANDARD_PERIODS.includes(Number(selectedPeriod))
+    ? Number(selectedPeriod)
+    : 1;
+  const selectedPayrollPeriodCountLabel =
+    formatPayrollPeriodCountLabel(selectedPayrollPeriodCount);
   const generateButtonLabel =
     generationMode === "manual"
       ? selectedEmployees.length === 0
@@ -799,9 +1952,7 @@ function Payroll() {
           : `Generate Manual for ${selectedEmployees.length} Employees`
       : selectedEmployees.length === 0
         ? "Select employee(s) to generate"
-        : selectedEmployees.length === 1
-          ? `Generate for ${previewEmployee?.name || "1 Employee"} - ${selectedPeriod} Month(s)`
-          : `Generate for ${selectedEmployees.length} Employees - ${selectedPeriod} Month(s)`;
+        : `Generate ${selectedEmployees.length} ${selectedEmployees.length === 1 ? "Employee" : "Employees"} - ${selectedPayrollPeriodCountLabel}`;
 
   return (
     <div className="payroll-page">
@@ -819,24 +1970,24 @@ function Payroll() {
         />
 
         <div className="select-all-row">
-          <label className="select-all-label">
-            <input
-              type="checkbox"
-              checked={allFilteredSelected}
-              onChange={handleSelectAll}
-              disabled={generating}
-            />
-            <span>
-              Select All
-              {filteredEmployees.length > 0 ? ` (${filteredEmployees.length})` : ""}
-            </span>
-          </label>
-        </div>
+              <label className="select-all-label">
+                <input
+                  type="checkbox"
+                  checked={allEmployeesSelected}
+                  onChange={handleSelectAll}
+                  disabled={generating}
+                />
+                <span>
+                  Select All
+                  {availableEmployeeIds.length > 0 ? ` (${availableEmployeeIds.length})` : ""}
+                </span>
+              </label>
+            </div>
 
         <div className="employee-list">
-          {filteredEmployees.map((emp) => {
-            const employeeKey = getEmployeeKey(emp.employee_Id);
-            const isChecked = selectedEmployeeSet.has(employeeKey);
+          {paginatedEmployees.map((emp) => {
+            const normalizedEmployeeKey = normalizeEmployeeIdentifier(emp.employee_Id);
+            const isChecked = selectedEmployeeSet.has(normalizedEmployeeKey);
             const isActive = isChecked && selectedEmployees.length === 1;
 
             return (
@@ -869,6 +2020,18 @@ function Payroll() {
             );
           })}
         </div>
+
+        <AppPagination
+          totalItems={filteredEmployees.length}
+          currentPage={employeePage}
+          pageSize={employeePageSize}
+          onPageChange={setEmployeePage}
+          onPageSizeChange={handleEmployeePageSizeChange}
+          pageSizeOptions={PAYROLL_PAGE_SIZE_OPTIONS}
+          itemLabel="employees"
+          pageNumberDisplay="first-and-current"
+          className="payroll-employee-pagination"
+        />
       </div>
 
       {/* RIGHT PANEL */}
@@ -876,7 +2039,14 @@ function Payroll() {
         {generating && (
           <div className="generation-overlay">
             <div className="generation-loader"></div>
-            <p>Generating payslip(s)... Please wait</p>
+            <div className="generation-overlay-copy">
+              <p>Generating Payslips for {selectedPayrollPeriodCountLabel}...</p>
+              {generationProgress.total > 0 && (
+                <span className="generation-progress">
+                  {generationProgress.completed} / {generationProgress.total} completed
+                </span>
+              )}
+            </div>
           </div>
         )}
 
@@ -932,8 +2102,9 @@ function Payroll() {
         </div>
 
         {(successMsg || errorMsg) && (
-          <div className={errorMsg ? "error-message" : "success-message"}>
-            {successMsg || errorMsg}
+          <div className="payroll-generation-messages">
+            {successMsg && <div className="success-message">{successMsg}</div>}
+            {errorMsg && <div className="error-message">{errorMsg}</div>}
           </div>
         )}
 
@@ -1007,19 +2178,6 @@ function Payroll() {
                   <label>SPECIFIC PERIOD</label>
                   <div className="period-buttons payroll-period-controls">
                     <select
-                      value={year}
-                      onChange={(e) => setYear(parseInt(e.target.value))}
-                      disabled={generating}
-                      className="payroll-filter-select payroll-period-select"
-                    >
-                      {years.map((y) => (
-                        <option key={y} value={y}>
-                          {y}
-                        </option>
-                      ))}
-                    </select>
-
-                    <select
                       value={month}
                       onChange={(e) => setMonth(e.target.value)}
                       disabled={generating}
@@ -1028,6 +2186,19 @@ function Payroll() {
                       {months.map((m) => (
                         <option key={m} value={m}>
                           {m}
+                        </option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={year}
+                      onChange={(e) => setYear(parseInt(e.target.value))}
+                      disabled={generating}
+                      className="payroll-filter-select payroll-period-select"
+                    >
+                      {years.map((y) => (
+                        <option key={y} value={y}>
+                          {y}
                         </option>
                       ))}
                     </select>
@@ -1057,7 +2228,7 @@ function Payroll() {
             </h4>
             <div className="period-section manual-top-controls payroll-filter-wrapper">
               <div className="specific-period payroll-filter-group payroll-period-group">
-                <label>MONTH</label>
+                <label>PAYSLIP MONTH</label>
                 <div className="period-buttons payroll-period-controls">
                   <select
                     value={month}
@@ -1075,7 +2246,7 @@ function Payroll() {
               </div>
 
               <div className="specific-period payroll-filter-group payroll-period-group">
-                <label>YEAR</label>
+                <label>PAYSLIP YEAR</label>
                 <div className="period-buttons payroll-period-controls">
                   <select
                     value={year}
@@ -1134,6 +2305,16 @@ function Payroll() {
                 {isSalaryDownloading
                   ? "Downloading..."
                   : "Download Monthly Report"}
+              </button>
+
+              <button
+                disabled={isSendingPayslipEmails}
+                onClick={handleSendPayslipEmails}
+                className="payroll-report-btn"
+              >
+                {isSendingPayslipEmails
+                  ? "Sending..."
+                  : "Send Payslip Emails"}
               </button>
             </div>
 
@@ -1209,20 +2390,19 @@ function Payroll() {
               <tbody>
                 {recentLoading ? (
                   <tr>
-                    <td colSpan="8" className="payroll-skeleton-cell">
-                      <TableSkeleton
-                        rows={6}
-                        columns={[
-                          { width: "260px", type: "avatar", headerWidth: "58%" },
-                          { width: "150px", headerWidth: "54%" },
-                          { width: "140px", headerWidth: "54%" },
-                          { width: "150px", headerWidth: "58%" },
-                          { width: "150px", headerWidth: "56%" },
-                          { width: "150px", headerWidth: "56%" },
-                          { width: "220px", headerWidth: "58%" },
-                          { width: "120px", type: "actions", headerWidth: "54%" },
-                        ]}
-                      />
+                    <td colSpan="8" className="payroll-recent-loading-cell">
+                      <div
+                        className="payroll-recent-loading-state"
+                        role="status"
+                        aria-live="polite"
+                        aria-busy="true"
+                      >
+                        <div
+                          className="generation-loader payroll-recent-loading-spinner"
+                          aria-hidden="true"
+                        />
+                        <p>Loading recent payslips...</p>
+                      </div>
                     </td>
                   </tr>
                 ) : paginatedRecentPayslips.length === 0 ? (
@@ -1329,8 +2509,12 @@ function Payroll() {
           <AppPagination
             totalItems={recentTotalCount}
             currentPage={recentPage}
+            pageSize={recentPageSize}
             onPageChange={setRecentPage}
+            onPageSizeChange={handleRecentPageSizeChange}
+            pageSizeOptions={PAYROLL_PAGE_SIZE_OPTIONS}
             itemLabel="payslips"
+            pageNumberDisplay="first-and-current"
           />
         </div>
 
