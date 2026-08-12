@@ -310,11 +310,11 @@ Thank you,
 Regards,
 </p>
 <p>
-<b>PIRNAV EMS</b><br/>
+<b>Honeywell EMS</b><br/>
 
 Employee Management System<br/>
 
-Pirnav Software Solutions Pvt. Ltd.<br/>
+Honeywell It Solutions Pvt. Ltd.<br/>
 </p>
 </body>
 </html>"
@@ -399,7 +399,7 @@ Reject
 <p>
 
 Regards,<br/>
-<b>PIRNAV EMS</b><br/>
+<b>Honeywell EMS</b><br/>
 
 Employee Management System
 </p>
@@ -1765,7 +1765,7 @@ Thank you.
 
 <p>
 Regards,<br/>
-<b>PIRNAV EMS</b><br/>
+<b>Honeywell EMS</b><br/>
 Employee Management System
 </p>
 
@@ -1840,7 +1840,7 @@ Thank you,
 
 <p>
 Regards,<br/>
-<b>PIRNAV EMS</b><br/>
+<b>Honeywell EMS</b><br/>
 Employee Management System
 </p>
 
@@ -2582,7 +2582,7 @@ style='border-collapse:collapse;'>
 <br/>
 
 <p>Regards,<br/>
-<b>PIRNAV EMS</b><br/>
+<b>Honeywell EMS</b><br/>
 Employee Management System
 </p>
 
