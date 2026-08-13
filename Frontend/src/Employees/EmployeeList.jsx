@@ -22,7 +22,7 @@ import {
   SALARY_MIN,
   buildSalaryBreakupPayload,
 } from "../utils/salaryStructure";
-import { toastSuccess, toastError } from "../components/common/Toast/toastService";
+import { toastSuccess, toastError } from "../components/common/toast/toastService";
 
 const initialEmployeeForm = {
   id: "",
