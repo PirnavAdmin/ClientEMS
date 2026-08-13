@@ -161,7 +161,6 @@ const EXPANDABLE_MENUS = [
     label: "Settings",
     icon: FaCog,
     adminOnly: true,
-    permission: "Settings",
     hidden: true,
     items: [
       { to: "/settings", icon: FaCog, label: "General Settings", adminOnly: true },
@@ -280,7 +279,7 @@ const STATIC_MENUS_AFTER_DROPDOWNS = [
     to: "/settings",
     icon: FaCog,
     label: "Settings",
-    adminOnly: true,
+     permission: "Settings",
   },
 ];
 
