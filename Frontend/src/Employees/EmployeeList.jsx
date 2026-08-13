@@ -332,10 +332,7 @@ function EmployeeList() {
       ...prev,
       [name]:
         name === "id"
-          ? value
-            .toUpperCase()
-            .replace(/[^A-Z0-9]/g, "")
-            .slice(0, 7)
+          ? value.slice(0, 15)
           : name === "name"
             ? value
               .replace(/[^A-Za-z\s]/g, "")
@@ -387,26 +384,20 @@ function EmployeeList() {
     // =========================
     // EMPLOYEE ID VALIDATION
     // =========================
-    const employeeId = empForm.id.trim().toUpperCase();
+    const employeeId = empForm.id.trim();
 
     if (!employeeId) {
       nextErrors.id = "Employee ID is required";
-    } else {
-      // Allow letters, numbers, and hyphen (-)
-      const employeeIdRegex = /^[A-Z0-9-]+$/;
+    } else if (employeeId.length > 15) {
+      nextErrors.id = "Employee ID should not exceed 15 characters";
+    } else if (!isEditMode) {
+      const idExists = empList.some(
+        (emp) =>
+          String(emp.id).trim().toLowerCase() === employeeId.toLowerCase()
+      );
 
-      if (!employeeIdRegex.test(employeeId)) {
-        nextErrors.id =
-          "Employee ID can contain only letters, numbers, and hyphen (-)";
-      } else if (!isEditMode) {
-        const idExists = empList.some(
-          (emp) =>
-            String(emp.id).toLowerCase() === employeeId.toLowerCase()
-        );
-
-        if (idExists) {
-          nextErrors.id = "Employee ID already exists.";
-        }
+      if (idExists) {
+        nextErrors.id = "Employee ID already exists.";
       }
     }
 
