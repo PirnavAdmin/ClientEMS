@@ -392,16 +392,12 @@ function EmployeeList() {
     if (!employeeId) {
       nextErrors.id = "Employee ID is required";
     } else {
-      // 1 or 2 alphabets + exactly 5 digits
-      // Examples:
-      // P12345
-      // EM12345
-
-      const employeeIdRegex = /^[A-Z]{1}[0-9]{3}$/;
+      // Allow letters, numbers, and hyphen (-)
+      const employeeIdRegex = /^[A-Z0-9-]+$/;
 
       if (!employeeIdRegex.test(employeeId)) {
         nextErrors.id =
-          "Employee ID must contain 1 alphabet followed by exactly 3 numbers";
+          "Employee ID can contain only letters, numbers, and hyphen (-)";
       } else if (!isEditMode) {
         const idExists = empList.some(
           (emp) =>
@@ -482,7 +478,11 @@ function EmployeeList() {
 
 
   const handleEmployeeSubmit = async () => {
-    if (!validateEmployee()) return;
+    const isValid = validateEmployee();
+
+    if (!isValid) {
+      return;
+    }
 
     setIsSubmitting(true);
 
@@ -490,6 +490,7 @@ function EmployeeList() {
       const selectedRole = roles.find(
         (role) => String(role.roleId) === String(empForm.roleId)
       );
+
       const salaryStructure = buildSalaryBreakupPayload(
         employeeCtcValue,
         salaryBreakup,
@@ -516,27 +517,49 @@ function EmployeeList() {
       };
 
       if (isEditMode) {
-        await api.put(API_ENDPOINTS.employees.byId(empForm.id), payload, {
-          headers: { "Content-Type": "application/json" },
-        });
+        await api.put(
+          API_ENDPOINTS.employees.byId(empForm.originalId),
+          payload,
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
       } else {
-        await api.post(API_ENDPOINTS.employees.list, payload, {
-          headers: { "Content-Type": "application/json" },
-        });
+        await api.post(
+          API_ENDPOINTS.employees.list,
+          payload,
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
       }
 
-      toastSuccess(isEditMode ? "Employee updated successfully." : "Employee added successfully.");
+      toastSuccess(
+        isEditMode
+          ? "Employee updated successfully."
+          : "Employee added successfully."
+      );
+
       setEmpShowModal(false);
       resetEmployeeForm();
+
       await fetchEmployees();
     } catch (err) {
-      console.error("Employee save error:", err.response?.data || err.message);
+      console.error(
+        "Employee save error:",
+        err.response?.data || err.message
+      );
 
       const backendMessage =
         err.response?.data?.message ||
         err.response?.data ||
         err.message ||
         "";
+
       const normalizedMessage = String(backendMessage).toLowerCase();
 
       if (normalizedMessage.includes("employee")) {
@@ -685,7 +708,7 @@ function EmployeeList() {
         return Number(second.ctcRaw || 0) - Number(first.ctcRaw || 0);
       }
 
-        return 0;
+      return 0;
     });
   }, [departmentFilter, empList, empSearch, selectedRole, sortBy, statusFilter]);
 
@@ -1213,7 +1236,7 @@ function EmployeeList() {
               </button>
               <button
                 className="emp-save-btn"
-                
+
                 onClick={handleEmployeeSubmit}
                 disabled={isSubmitting}
               >
