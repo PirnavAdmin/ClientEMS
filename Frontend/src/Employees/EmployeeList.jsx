@@ -332,7 +332,7 @@ function EmployeeList() {
       ...prev,
       [name]:
         name === "id"
-          ? value.slice(0, 15)
+          ? value.slice(0, 40)
           : name === "name"
             ? value
               .replace(/[^A-Za-z\s]/g, "")
@@ -388,8 +388,8 @@ function EmployeeList() {
 
     if (!employeeId) {
       nextErrors.id = "Employee ID is required";
-    } else if (employeeId.length > 15) {
-      nextErrors.id = "Employee ID should not exceed 15 characters";
+    } else if (employeeId.length > 25) {
+      nextErrors.id = "Employee ID should not exceed 25 characters";
     } else if (!isEditMode) {
       const idExists = empList.some(
         (emp) =>
