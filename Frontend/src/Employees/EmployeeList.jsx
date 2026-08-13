@@ -1089,7 +1089,8 @@ function EmployeeList() {
                   value={empForm.id}
                   onChange={handleEmpChange}
                   placeholder="Ex: P401"
-                  disabled={isSubmitting || isEditMode}
+                  // disabled={isSubmitting || isEditMode}
+                  disabled={isSubmitting}
                 />
                 {errors.id && <p className="form-error">{errors.id}</p>}
               </div>
