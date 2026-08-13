@@ -119,11 +119,11 @@ const OfferLetters = lazyRoute("offer-letters", () => import("./OfferLetters/Off
 const Reports = lazyRoute("reports", () => import("./Reports/Reports"));
 const SettingsPage = lazyRoute("settings", () => import("./Pages/Settings/SettingsPage"));
 const HrmsSettingsPage = lazyRoute("hrms-settings", () => import("./Pages/Settings/HrmsSettingsPage"));
-const TemplateSettingsPage = lazyRoute("template-settings", () =>
-  import("./Pages/Settings/HrmsSettingsPage").then((module) => ({
-    default: module.TemplateSettingsPage,
-  }))
-);
+// const TemplateSettingsPage = lazyRoute("template-settings", () =>
+//   import("./Pages/Settings/HrmsSettingsPage").then((module) => ({
+//     default: module.TemplateSettingsPage,
+//   }))
+// );
 const AccessDenied = lazyRoute("access-denied", () => import("./Pages/AccessDenied"));
 
 const MainLayout = lazyRoute("main-layout", () => import("./MainLayout"));
@@ -719,14 +719,14 @@ function App() {
                   </AdminSettingsRoute>
                 }
               />
-              <Route
+              {/* <Route
                 path="/settings/templates"
                 element={
                   <AdminSettingsRoute>
                     <TemplateSettingsPage />
                   </AdminSettingsRoute>
                 }
-              />
+              /> */}
             </Route>
 
           </Routes>
