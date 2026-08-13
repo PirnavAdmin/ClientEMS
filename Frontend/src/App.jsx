@@ -674,49 +674,50 @@ function App() {
               <Route
                 path="/settings"
                 element={
-                  <AdminSettingsRoute>
+                  <PermissionRoute module="Settings">
                     <SettingsPage />
-                  </AdminSettingsRoute>
+                    </PermissionRoute>
+                  
                 }
               />
               <Route
                 path="/settings/resignation"
                 element={
-                  <AdminSettingsRoute>
+                  <PermissionRoute module="Settings">
                     <HrmsSettingsPage moduleKey="resignation" />
-                  </AdminSettingsRoute>
+                  </PermissionRoute>
                 }
               />
               <Route
                 path="/settings/employee-clearance"
                 element={
-                  <AdminSettingsRoute>
+                  <PermissionRoute module="Settings">
                     <HrmsSettingsPage moduleKey="employeeClearance" />
-                  </AdminSettingsRoute>
+                  </PermissionRoute>
                 }
               />
               <Route
                 path="/settings/exit-interview"
                 element={
-                  <AdminSettingsRoute>
+                  <PermissionRoute module="Settings">
                     <HrmsSettingsPage moduleKey="exitInterview" />
-                  </AdminSettingsRoute>
+                  </PermissionRoute>
                 }
               />
               <Route
                 path="/settings/full-final-settlement"
                 element={
-                  <AdminSettingsRoute>
+                  <PermissionRoute module="Settings">
                     <HrmsSettingsPage moduleKey="fullFinalSettlement" />
-                  </AdminSettingsRoute>
+                  </PermissionRoute>
                 }
               />
               <Route
                 path="/settings/shift"
                 element={
-                  <AdminSettingsRoute>
+                  <PermissionRoute module="Settings">
                     <HrmsSettingsPage shiftMode />
-                  </AdminSettingsRoute>
+                  </PermissionRoute>
                 }
               />
               {/* <Route
