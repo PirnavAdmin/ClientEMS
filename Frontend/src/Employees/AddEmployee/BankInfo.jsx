@@ -1,4 +1,4 @@
-import React, { forwardRef, useCallback, useImperativeHandle, useState, useEffect } from "react";
+import React, { forwardRef, useImperativeHandle, useState, useEffect } from "react";
 import api from "../../api/axiosInstance";
 import { API_ENDPOINTS } from "../../api/endpoints";
 
@@ -28,7 +28,6 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
   const [successMsg, setSuccessMsg] = useState("");
   const [apiError, setApiError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [salarySaving, setSalarySaving] = useState(false);
   const [salaryErrors, setSalaryErrors] = useState({});
   useEffect(() => {
     if (!data) return;
@@ -44,7 +43,18 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
     setPf(data.pF_Account_Number || "");
   }, [data]);
 
-  const loadSalary = useCallback(async () => {
+  useEffect(() => {
+    if (!employeeId) return;
+    loadSalary();
+  }, [employeeId]);
+
+  useImperativeHandle(ref, () => ({
+    validate() {
+      return true;
+    },
+  }));
+
+  const loadSalary = async () => {
     try {
       const res = await api.get(
         API_ENDPOINTS.employeeSalaryStructure.byEmployeeId(employeeId)
@@ -66,18 +76,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
     catch {
       setSalaryExists(false);
     }
-  }, [employeeId]);
-
-  useEffect(() => {
-    if (!employeeId) return;
-    loadSalary();
-  }, [employeeId, loadSalary]);
-
-  useImperativeHandle(ref, () => ({
-    validate() {
-      return true;
-    },
-  }));
+  };
 
   const handleSalaryInput = (field, value, setter) => {
     // Remove spaces
@@ -118,36 +117,48 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
       otherDeduction: Number(otherDeduction),
       isActive: true
     };
+
     if (salaryExists) {
       await api.put(
         API_ENDPOINTS.employeeSalaryStructure.update(employeeId),
         payload
       );
+      return;
     }
-    else {
+
+    try {
       await api.post(
         API_ENDPOINTS.employeeSalaryStructure.list,
         payload
       );
-    }
-  };
+      setSalaryExists(true);
+    } catch (error) {
+      const status = error?.response?.status;
+      const message = String(
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.response?.data ||
+        ""
+      ).toLowerCase();
 
-  const handleSalarySave = async () => {
-    if (salarySaving) {
-      return;
-    }
+      if (status === 400 && message.includes("already")) {
+        await api.put(
+          API_ENDPOINTS.employeeSalaryStructure.update(employeeId),
+          payload
+        );
+        setSalaryExists(true);
+        return;
+      }
 
-    setSalarySaving(true);
-
-    try {
-      await saveSalary();
-    } finally {
-      setSalarySaving(false);
+      throw error;
     }
   };
 
   const handleSaveNext = async () => {
+    if (saving) return;
+
     const finalBankName = bankName === "Other" ? manualBank : bankName;
+
     setApiError("");
     setSuccessMsg("");
     setSaving(true);
@@ -167,39 +178,49 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
       const response = data
         ? await api.put(
-          API_ENDPOINTS.employeeBankDetails.byEmployeeId(employeeId),
-          payload,
-          {
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        )
+            API_ENDPOINTS.employeeBankDetails.byEmployeeId(employeeId),
+            payload,
+            {
+              headers: {
+                "Content-Type": "application/json",
+              },
+            }
+          )
         : await api.post(
-          API_ENDPOINTS.employeeBankDetails.list,
-          payload,
-          {
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        );
+            API_ENDPOINTS.employeeBankDetails.list,
+            payload,
+            {
+              headers: {
+                "Content-Type": "application/json",
+              },
+            }
+          );
 
-      // Save Salary Structure
+      // Save Bank Details + Salary Structure with this single button.
       await saveSalary();
 
       setSuccessMsg(
         data
-          ? "Bank details and salary structure updated!"
-          : "Bank details and salary structure saved!"
+          ? "Bank details and salary structure updated successfully!"
+          : "Bank details and salary structure saved successfully!"
       );
 
       setTimeout(() => {
-        onNext(response?.data?.employeeId || employeeId);
+        if (onNext) {
+          onNext(response?.data?.employeeId || employeeId);
+        }
       }, 800);
     } catch (error) {
-      console.error("Bank API Error:", error.response?.data || error.message);
-      setApiError("Failed to save bank details.");
+      console.error(
+        "Bank / Salary API Error:",
+        error?.response?.data || error?.message
+      );
+
+      setApiError(
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        "Failed to save bank details and salary structure."
+      );
     } finally {
       setSaving(false);
     }
@@ -352,7 +373,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* Basic Salary */}
           <div className="form-group">
-            <label>Basic Salary(Monthly)</label>
+            <label>Basic Salary</label>
             <input
               type="text"
               inputMode="numeric"
@@ -376,7 +397,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* HRA */}
           <div className="form-group">
-            <label>HRA(Monthly)</label>
+            <label>HRA</label>
             <input
               type="text"
               inputMode="numeric"
@@ -400,7 +421,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* Conveyance Allowance */}
           <div className="form-group">
-            <label>Conveyance Allowance(Monthly)</label>
+            <label>Conveyance Allowance</label>
             <input
               type="text"
               inputMode="numeric"
@@ -425,7 +446,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* Medical Allowance */}
           <div className="form-group">
-            <label>Medical Allowance(Monthly)</label>
+            <label>Medical Allowance</label>
             <input
               type="text"
               inputMode="numeric"
@@ -448,7 +469,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* Special Allowance */}
           <div className="form-group">
-            <label>Special Allowance(Monthly)</label>
+            <label>Special Allowance</label>
             <input
               type="text"
               inputMode="numeric"
@@ -471,7 +492,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* Employee PF */}
           <div className="form-group">
-            <label>Employee PF(Monthly)</label>
+            <label>Employee PF</label>
             <input
               type="text"
               inputMode="numeric"
@@ -494,7 +515,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* Employer PF */}
           <div className="form-group">
-            <label>Employer PF(Monthly)</label>
+            <label>Employer PF</label>
             <input
               type="text"
               inputMode="numeric"
@@ -517,7 +538,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* Professional Tax */}
           <div className="form-group">
-            <label>Professional Tax(Monthly)</label>
+            <label>Professional Tax</label>
             <input
               type="text"
               inputMode="numeric"
@@ -540,7 +561,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* TDS */}
           <div className="form-group">
-            <label>TDS(Monthly)</label>
+            <label>TDS</label>
             <input
               type="text"
               inputMode="numeric"
@@ -586,24 +607,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
         </div>
 
-        {!viewMode && (
-          <div className="salary-save">
-            <button
-              type="button"
-              className="btn primary"
-              onClick={handleSalarySave}
-              disabled={salarySaving}
-            >
-              {salarySaving
-                ? salaryExists
-                  ? "Updating..."
-                  : "Saving..."
-                : salaryExists
-                  ? "Update Salary"
-                  : "Save Salary"}
-            </button>
-          </div>
-        )}
+       
       </div>
 
       <div className="step-actions bank-step-actions">
