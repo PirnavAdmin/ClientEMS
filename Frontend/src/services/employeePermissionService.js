@@ -8,7 +8,6 @@ import {
   getStoredEmployeePermissionSnapshot,
   getStoredRole,
   getStoredRoleName,
-  getStoredToken,
   getStoredUserRecord,
   persistEmployeePermissions,
 } from "../utils/authStorage";
@@ -221,7 +220,6 @@ const requestAllowedModules = async ({
   }
 
   console.log("Selected Permission API:", endpoint);
-  console.log("JWT Token:", getStoredToken() || "");
 
   const response = await api.get(endpoint, {
     headers: {
