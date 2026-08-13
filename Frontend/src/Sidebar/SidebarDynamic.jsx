@@ -161,6 +161,7 @@ const EXPANDABLE_MENUS = [
     label: "Settings",
     icon: FaCog,
     adminOnly: true,
+    permission: "Settings",
     hidden: true,
     items: [
       { to: "/settings", icon: FaCog, label: "General Settings", adminOnly: true },
@@ -169,8 +170,8 @@ const EXPANDABLE_MENUS = [
       { to: "/settings/exit-interview", icon: FaUserTie, label: "Exit Interview", adminOnly: true },
       { to: "/settings/full-final-settlement", icon: FaMoneyBillWave, label: "Full Final Settlement", adminOnly: true },
       { to: "/settings/shift", icon: FaCalendarAlt, label: "Shift Settings", adminOnly: true },
-      { to: "/settings/templates", icon: FaFileSignature, label: "Templates", adminOnly: true },
-    ],
+    //   { to: "/settings/templates", icon: FaFileSignature, label: "Templates", adminOnly: true },
+     ],
   },
 ];
 
@@ -334,10 +335,10 @@ function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
   const location = useLocation();
   const roleName = getUserRole();
   const superAdminUser = isSuperAdmin();
-  const dashboardPath =
+   const dashboardPath =
     roleName === "admin" ? "/dashboard" : "/user-dashboard";
   // const resolvedLogo = useBrandingLogo("sidebarLogo");
-  // const logoSrc = resolvedLogo || honeyIcon;
+  // const logoSrc = resolvedLogo || pirnavLogo;
   const isCompact = !isMobile && collapsed;
   const routeMenu = isCompact ? null : getMenuKeyFromPath(location.pathname);
   const [menuState, setMenuState] = useState(() => ({
@@ -692,7 +693,9 @@ function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
           />
         </div> */}
 
+
         <NavLink
+
           to={dashboardPath}
           className="logo sidebar-brand"
           aria-label="Go to dashboard"
