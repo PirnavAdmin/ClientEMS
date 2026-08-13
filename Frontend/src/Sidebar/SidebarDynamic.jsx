@@ -23,7 +23,7 @@ import {
 import { NavLink, useLocation } from "react-router-dom";
 import "./Sidebar.css";
 import honeyIcon from "../assets/honeywell.png";
-import { useBrandingLogo } from "../utils/brandingLogo";
+// import { useBrandingLogo } from "../utils/brandingLogo";
 import { getUserRole, hasModulePermission, hasRole, isAdmin, isOnboardingUser, isSuperAdmin } from "../utils/authorization";
 
 const SUPER_ADMIN_EXPANDABLE_MENUS = [];
@@ -230,7 +230,7 @@ const STATIC_MENUS_AFTER_DROPDOWNS = [
   {
     to: "/offer-letters",
     icon: FaFileSignature,
-    label: "Official Letter",
+    label: "Employee Letters",
     permission: "Offer Letters",
   },
   {
@@ -334,8 +334,10 @@ function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
   const location = useLocation();
   const roleName = getUserRole();
   const superAdminUser = isSuperAdmin();
-  const resolvedLogo = useBrandingLogo("sidebarLogo");
-  const logoSrc = resolvedLogo || honeyIcon;
+  const dashboardPath =
+    roleName === "admin" ? "/dashboard" : "/user-dashboard";
+  // const resolvedLogo = useBrandingLogo("sidebarLogo");
+  // const logoSrc = resolvedLogo || honeyIcon;
   const isCompact = !isMobile && collapsed;
   const routeMenu = isCompact ? null : getMenuKeyFromPath(location.pathname);
   const [menuState, setMenuState] = useState(() => ({
@@ -641,13 +643,13 @@ function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
 
   const renderSuperAdminMenu = () => (
     <>
-    <SidebarLink
-    to="/super-admin/dashboard"
-    icon={FaTachometerAlt}
-    label="Dashboard"
-    compact={isCompact}
-    onClick={handleLinkClick}
-/>
+      <SidebarLink
+        to="/super-admin/dashboard"
+        icon={FaTachometerAlt}
+        label="Dashboard"
+        compact={isCompact}
+        onClick={handleLinkClick}
+      />
       {SUPER_ADMIN_EXPANDABLE_MENUS.map(renderExpandableMenu)}
       {SUPER_ADMIN_STATIC_MENUS.filter((item) => item.label !== "Dashboard").map((item) => (
         <SidebarLink
@@ -677,9 +679,9 @@ function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
         className={`sidebar ${isCompact ? "collapsed" : ""} ${isMobile ? "mobile-sidebar" : ""
           } ${isMobile && mobileOpen ? "mobile-open" : ""}`}
       >
-        <div className="logo">
+        {/* <div className="logo">
           <img
-            src={logoSrc}
+            src={honeyIcon}
             alt="Honeywell Logo"
             className="sidebar-logo-img"
             onError={(event) => {
@@ -688,7 +690,21 @@ function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
               }
             }}
           />
-        </div>
+        </div> */}
+
+        <NavLink
+          to={dashboardPath}
+          className="logo sidebar-brand"
+          aria-label="Go to dashboard"
+          onClick={handleLinkClick}
+        >
+          <img
+            src={honeyIcon}
+            alt="Honeywell Logo"
+            className="sidebar-logo-img"
+          />
+        </NavLink>
+
 
         <nav className="menu">
           {isOnboardingUser() ? (

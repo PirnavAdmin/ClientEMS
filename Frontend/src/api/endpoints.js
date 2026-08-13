@@ -1,5 +1,8 @@
 import { BASE_URL, SERVER_URL } from "./config";
 
+const encodePathSegment = (value) =>
+  encodeURIComponent(String(value ?? "").trim());
+
 const normalizePath = (path) =>
   String(path)
     .replace(/\\/g, "/")
@@ -604,10 +607,10 @@ export const API = {
 
   // ================= ROLE PERMISSION =================
   ROLE_PERMISSION: {
-    GET: (roleName) => `/RolePermission/${roleName}`,
+    GET: (roleName) => `/RolePermission/${encodePathSegment(roleName)}`,
     SAVE: "/RolePermission/save",
     MODULES: "/RolePermission/allowed-modules",
-    EMPLOYEES: (roleName) => `/RolePermission/employees/${roleName}`,
+    EMPLOYEES: (roleName) => `/RolePermission/employees/${encodePathSegment(roleName)}`,
   },
 
   // ================= USER PERMISSION =================
