@@ -134,7 +134,7 @@ public class EmployeeBankDetailsController : ControllerBase
     }
 
 
-    [HttpPut("{employeeId}")]
+    [HttpPut("{*employeeId}")]
     public async Task<IActionResult> Update(string employeeId, EmployeeBankDetailDto dto)
     {
         if (!ModelState.IsValid)
