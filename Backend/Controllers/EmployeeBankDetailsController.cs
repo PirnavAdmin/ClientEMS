@@ -89,9 +89,10 @@ public class EmployeeBankDetailsController : ControllerBase
             message = "Bank details created successfully."
         });
     }
-    [HttpGet("{employeeId}")]
+    [HttpGet("{*employeeId}")]
     public async Task<IActionResult> GetByEmployeeId(string employeeId)
     {
+     employeeId = Uri.UnescapeDataString(employeeId).Trim();
         bool isAdmin = await IsAdminUser();
 
         if (!isAdmin)
@@ -137,6 +138,7 @@ public class EmployeeBankDetailsController : ControllerBase
     [HttpPut("{*employeeId}")]
     public async Task<IActionResult> Update(string employeeId, EmployeeBankDetailDto dto)
     {
+     employeeId = Uri.UnescapeDataString(employeeId).Trim();
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
