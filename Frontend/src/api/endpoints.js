@@ -614,11 +614,13 @@ export const API = {
   },
 
   // ================= USER PERMISSION =================
-  USER_PERMISSION: {
-    SAVE: "/UserPermission",
-    GET: (employeeId) => `/UserPermission/${employeeId}`,
-    ALLOWED: (employeeId) => `/UserPermission/allowed/${employeeId}`,
-  },
+ USER_PERMISSION: {
+  SAVE: "/UserPermission",
+  GET: (employeeId) =>
+    `/UserPermission/${encodePathSegment(employeeId)}`,
+  ALLOWED: (employeeId) =>
+    `/UserPermission/allowed/${encodePathSegment(employeeId)}`,
+},
 
   // ================= PERMISSION =================
   PERMISSION: {
