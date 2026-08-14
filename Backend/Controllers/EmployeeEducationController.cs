@@ -135,7 +135,7 @@ namespace EmployeeManagementSystem.Controllers
             return Ok(data);
         }
         // ✅ UPDATE ALL (REPLACE LIST)
-        [HttpPut("{employeeId}")]
+        [HttpPut("{*employeeId}")]
         public async Task<IActionResult> UpdateAll(string employeeId, List<EmployeeEducationDto> dtos)
         {
             if (dtos == null || dtos.Count == 0)
