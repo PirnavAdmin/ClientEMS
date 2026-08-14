@@ -138,6 +138,7 @@ namespace EmployeeManagementSystem.Controllers
         [HttpPut("{*employeeId}")]
         public async Task<IActionResult> UpdateAll(string employeeId, List<EmployeeEducationDto> dtos)
         {
+         employeeId = Uri.UnescapeDataString(employeeId).Trim();
             if (dtos == null || dtos.Count == 0)
                 return BadRequest("No education data provided.");
 
