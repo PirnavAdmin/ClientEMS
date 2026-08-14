@@ -129,7 +129,7 @@ namespace EmployeeManagementSystem.Controllers
             });
         }
         // 🔹 UPDATE (FIXED ✅)
-        [HttpPut("{employeeId}")]
+        [HttpPut("{*employeeId}")]
         public async Task<IActionResult> Update(string employeeId, EmployeePersonalInfoDto dto)
         {
             if (!ModelState.IsValid)
