@@ -73,9 +73,10 @@ namespace EmployeeManagementSystem.Controllers
                 message = result
             });
         }
-        [HttpGet("{employeeId}")]
+        [HttpGet("{*employeeId}")]
         public async Task<IActionResult> GetEmployeeDocuments(string employeeId)
         {
+         employeeId = Uri.UnescapeDataString(employeeId).Trim();
             bool isAdmin = await IsAdminUser();
 
             if (!isAdmin)
