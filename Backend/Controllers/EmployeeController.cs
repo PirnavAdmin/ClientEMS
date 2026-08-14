@@ -77,11 +77,12 @@ namespace EmployeeManagementSystem.Controllers
 
         // UPDATE EMPLOYEE
 
-        [HttpPut("{employeeId}")]
+        [HttpPut("{*employeeId}")]
 
         public async Task<IActionResult> UpdateEmployee(string employeeId, EmployeeDto dto)
 
         {
+        employeeId = Uri.UnescapeDataString(employeeId).Trim();
 
             var employee = await _employeeService.UpdateEmployee(User, employeeId, dto);
 
