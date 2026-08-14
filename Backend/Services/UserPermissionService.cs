@@ -21,13 +21,18 @@ namespace EmployeeManagementSystem.Services
             // 1. GET EMPLOYEE
             // =====================================================
 
-            var employee = await _context.Employees
-                .AsNoTracking()
-                .FirstOrDefaultAsync(x =>
-                    x.Employee_Id == dto.EmployeeId);
+           var normalizedEmployeeId = employeeId?.Trim();
 
-            if (employee == null)
-                throw new Exception("Employee not found.");
+var employee =
+    await _context.Employees
+        .AsNoTracking()
+        .FirstOrDefaultAsync(x =>
+            x.Employee_Id == normalizedEmployeeId ||
+            x.Employee_Id.EndsWith("/" + normalizedEmployeeId));
+
+if (employee == null)
+    throw new Exception(
+        $"Employee not found for EmployeeId: {normalizedEmployeeId}");
 
             if (!employee.AdminId.HasValue)
                 throw new Exception(
