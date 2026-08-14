@@ -52,6 +52,7 @@ namespace EmployeeManagementSystem.Controllers
         public async Task<IActionResult> UploadAgreement([FromForm] UploadAgreementDto dto)
 
         {
+        employeeId = Uri.UnescapeDataString(employeeId).Trim();
 
             var result = await _agreementService.UploadAgreement(dto);
 
@@ -221,21 +222,23 @@ namespace EmployeeManagementSystem.Controllers
 
         }
 
-        [HttpGet("Pending/{employeeId}")]
+        [HttpGet("Pending/{*employeeId}")]
 
         public async Task<IActionResult> Pending(string employeeId)
 
         {
+         employeeId = Uri.UnescapeDataString(employeeId).Trim();
 
             return Ok(await _agreementService.GetPendingAgreements(employeeId));
 
         }
 
-        [HttpGet("Signed/{employeeId}")]
+        [HttpGet("Signed/{*employeeId}")]
 
         public async Task<IActionResult> Signed(string employeeId)
 
         {
+         employeeId = Uri.UnescapeDataString(employeeId).Trim();
 
             return Ok(await _agreementService.GetSignedAgreements(employeeId));
 
