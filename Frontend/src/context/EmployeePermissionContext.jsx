@@ -18,18 +18,19 @@ import {
 import {
   clearAuthData,
   getAuthenticatedUserSnapshot,
+  getStoredEffectivePermissionSnapshot,
   getStoredEmployeeEmail,
   getStoredEmployeeId,
-  getStoredEmployeePermissionSnapshot,
   getStoredRefreshToken,
+  getStoredRoleId,
   getStoredRole,
   getStoredRoleName,
   getStoredToken,
-  persistEmployeePermissions,
+  persistEffectivePermissions,
 } from "../utils/authStorage";
 import {
-  isEmployee,
   isSuperAdmin,
+  isPermissionManagedRole,
   modulePermissionMatches,
   normalizeLoginRole,
   normalizePermissionList,
@@ -67,6 +68,8 @@ const normalizeSnapshot = (snapshot = {}) => {
     return {
       userId: "",
       userEmail: "",
+      roleId: "",
+      roleName: "",
       modules: normalizePermissionList(snapshot),
     };
   }
@@ -102,12 +105,34 @@ const normalizeSnapshot = (snapshot = {}) => {
         getStoredEmployeeEmail() ??
         ""
     ).trim(),
+    roleId: String(
+      payload.roleId ??
+        payload.RoleId ??
+        payload.roleID ??
+        snapshot.roleId ??
+        snapshot.RoleId ??
+        snapshot.roleID ??
+        getStoredRoleId() ??
+        ""
+    ).trim(),
+    roleName: String(
+      payload.roleName ??
+        payload.RoleName ??
+        payload.name ??
+        payload.Name ??
+        snapshot.roleName ??
+        snapshot.RoleName ??
+        snapshot.name ??
+        snapshot.Name ??
+        getStoredRoleName() ??
+        ""
+    ).trim(),
     modules: normalizePermissionList(payload),
   };
 };
 
 const readCachedSnapshot = () => {
-  const snapshot = getStoredEmployeePermissionSnapshot();
+  const snapshot = getStoredEffectivePermissionSnapshot();
 
   if (snapshot && Array.isArray(snapshot.modules) && snapshot.modules.length > 0) {
     return snapshot;
@@ -122,7 +147,8 @@ const resolvePermission = (permissions, moduleName) =>
 const resolvePermissionRole = () =>
   normalizeLoginRole(getStoredRole() || getStoredRoleName() || "user", "user");
 
-const isEmployeeScope = (roleValue) => isEmployee(roleValue);
+const isEmployeeScope = (roleValue) =>
+  isPermissionManagedRole(roleValue) || normalizeLoginRole(roleValue, "") === "user";
 
 export const EmployeePermissionProvider = ({ children }) => {
   const initialSnapshot = readCachedSnapshot();
@@ -155,6 +181,9 @@ export const EmployeePermissionProvider = ({ children }) => {
   const [refreshToken, setRefreshToken] = useState(
     () => initialAuthSnapshot.refreshToken || getStoredRefreshToken() || ""
   );
+  const [roleId, setRoleId] = useState(
+    () => initialSnapshot?.roleId || getStoredRoleId() || ""
+  );
   const [isAuthenticated, setIsAuthenticated] = useState(
     () => Boolean(initialAuthSnapshot.token || getStoredToken())
   );
@@ -184,11 +213,14 @@ export const EmployeePermissionProvider = ({ children }) => {
     const normalizedUser = authSnapshot.user || null;
     const normalizedRefreshToken =
       authSnapshot.refreshToken || getStoredRefreshToken() || "";
+    const normalizedRoleId =
+      authSnapshot.roleId || getStoredRoleId() || "";
 
     setToken(authSnapshot.token || "");
     setRole(normalizedRole);
     setUser(normalizedUser);
     setRefreshToken(normalizedRefreshToken);
+    setRoleId(normalizedRoleId);
     setIsAuthenticated(Boolean(authSnapshot.token));
 
     return {
@@ -196,6 +228,7 @@ export const EmployeePermissionProvider = ({ children }) => {
       role: normalizedRole,
       user: normalizedUser,
       refreshToken: normalizedRefreshToken,
+      roleId: normalizedRoleId,
       isAuthenticated: Boolean(authSnapshot.token),
     };
   }, []);
@@ -204,6 +237,7 @@ export const EmployeePermissionProvider = ({ children }) => {
     const normalizedSnapshot = normalizeSnapshot(snapshot);
 
     setAllowedModules(normalizedSnapshot.modules);
+    setRoleId(normalizedSnapshot.roleId || "");
     setUserId(normalizedSnapshot.userId || "");
     setUserEmail(normalizedSnapshot.userEmail || "");
     setStatus("ready");
@@ -224,6 +258,7 @@ export const EmployeePermissionProvider = ({ children }) => {
     setRole("");
     setUser(null);
     setRefreshToken("");
+    setRoleId("");
     setIsAuthenticated(false);
     setAllowedModules([]);
     setUserId("");
@@ -312,42 +347,7 @@ export const EmployeePermissionProvider = ({ children }) => {
           getStoredRole() ||
           currentRole
       ).trim();
-      const isSuperAdminRole = isSuperAdmin(currentRole);
-      const permissionFlow = isEmployeeScope(currentRole)
-        ? "role-permission"
-        : isSuperAdminRole
-          ? "superadmin-bypass"
-          : "no-permission-api";
-
-      if (!isEmployeeScope(currentRole)) {
-        console.log("Authenticated Role:", currentRoleLabel || currentRole || "unknown");
-        console.log("Selected Permission Flow:", permissionFlow);
-
-        if (isSuperAdminRole) {
-          console.log("Skipping permission API for Super Admin");
-        }
-
-        console.log("Selected Permission API:", "none");
-        setAllowedModules([]);
-        setStatus("ready");
-        setError("");
-        setErrorStatus(0);
-        return [];
-      }
-
-      if (!force) {
-        const cachedSnapshot = readCachedSnapshot();
-
-        if (cachedSnapshot?.modules?.length > 0) {
-          applySnapshot(cachedSnapshot);
-          return cachedSnapshot.modules;
-        }
-      }
-
-      setStatus("loading");
-      setError("");
-      setErrorStatus(0);
-
+      const currentRoleId = authSnapshot.roleId || getStoredRoleId() || "";
       const currentUserId =
         authSnapshot.userId ||
         authSnapshot.employeeId ||
@@ -358,11 +358,55 @@ export const EmployeePermissionProvider = ({ children }) => {
         authSnapshot.email ||
         getStoredEmployeeEmail() ||
         "";
+      const isSuperAdminRole = isSuperAdmin(currentRole);
+      const managedRole = isEmployeeScope(currentRole);
+      const permissionFlow = managedRole
+        ? "effective-user-permissions"
+        : isSuperAdminRole
+          ? "superadmin-bypass"
+          : "no-permission-api";
 
-      console.log("Authenticated Role:", currentRoleLabel || currentRole);
+      console.log("Authenticated Role:", currentRoleLabel || currentRole || "unknown");
       console.log("Selected Permission Flow:", permissionFlow);
-      console.log("Selected Permission API:", "/RolePermission/allowed-modules");
+      console.log("Current UserId:", currentUserId || "");
+      console.log("Current RoleId:", currentRoleId || "");
+      console.log("Current EmployeeId:", authSnapshot.employeeId || getStoredEmployeeId() || "");
       console.log("JWT Token:", authSnapshot.token || getStoredToken() || "");
+
+      if (!managedRole) {
+        if (isSuperAdminRole) {
+          console.log("Skipping permission API for Super Admin");
+        }
+
+        console.log("Selected Permission API:", "none");
+        setAllowedModules([]);
+        setRoleId(currentRoleId);
+        setUserId(currentUserId);
+        setUserEmail(currentUserEmail);
+        setStatus("ready");
+        setError("");
+        setErrorStatus(0);
+        return [];
+      }
+
+      if (!force) {
+        const cachedSnapshot = readCachedSnapshot();
+
+        if (
+          cachedSnapshot?.modules?.length > 0 &&
+          String(cachedSnapshot.userId || "").trim() === String(currentUserId || "").trim() &&
+          String(cachedSnapshot.roleId || "").trim() === String(currentRoleId || "").trim() &&
+          String(cachedSnapshot.roleName || "").trim().toLowerCase() ===
+            String(currentRoleLabel || currentRole).trim().toLowerCase()
+        ) {
+          applySnapshot(cachedSnapshot);
+          return cachedSnapshot.modules;
+        }
+      }
+
+      setStatus("loading");
+      setError("");
+      setErrorStatus(0);
 
       try {
         const modules = await fetchAllowedEmployeeModules({
@@ -377,11 +421,13 @@ export const EmployeePermissionProvider = ({ children }) => {
         const snapshot = {
           userId: currentUserId,
           userEmail: currentUserEmail,
+          roleId: currentRoleId,
+          roleName: currentRoleLabel || currentRole,
           modules,
         };
 
         applySnapshot(snapshot);
-        persistEmployeePermissions(snapshot);
+        persistEffectivePermissions(snapshot);
 
         console.log("Visible Modules:", modules);
 
@@ -436,6 +482,8 @@ export const EmployeePermissionProvider = ({ children }) => {
       errorStatus,
       token,
       role,
+      roleId,
+      roleName: getStoredRoleName() || role,
       user,
       refreshToken,
       isAuthenticated,
@@ -477,6 +525,7 @@ export const EmployeePermissionProvider = ({ children }) => {
       isReady,
       refreshPermissions,
       refreshToken,
+      roleId,
       role,
       status,
       token,

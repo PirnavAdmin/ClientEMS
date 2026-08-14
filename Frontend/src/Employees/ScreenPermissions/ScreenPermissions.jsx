@@ -8,10 +8,12 @@ import { toastError, toastSuccess } from "../../components/common/toast/toastSer
 import { extractCollection } from "../../utils/collections";
 import {
   buildRolePermissionSavePayload,
+  fetchRolePermissionsByRoleName,
   getRolePermissionErrorMessage,
   normalizeRolePermissionSnapshot,
   saveRolePermissions,
 } from "../../services/rolePermissionService";
+import { mergePermissionLists } from "../../services/effectivePermissionService";
 import {
   buildUserPermissionSavePayload,
   fetchUserPermissionsByEmployeeId,
@@ -109,13 +111,18 @@ const sortPermissions = (permissions = []) =>
     .sort((left, right) => compareModuleIds(left.moduleId, right.moduleId));
 
 const normalizeScreenPermissionRow = (permission = {}, { strictAccess = false } = {}) => {
+  const canCreate = Boolean(
+    permission.canCreate ?? permission.CanCreate ?? permission.canAdd ?? permission.CanAdd ?? false
+  );
+  const canAdd = Boolean(permission.canAdd ?? permission.CanAdd ?? canCreate);
   const normalizedPermission = {
     ...permission,
     moduleId: normalizeId(permission.moduleId ?? permission.ModuleId ?? ""),
     moduleName: normalizeId(permission.moduleName ?? permission.ModuleName ?? ""),
     canAccess: Boolean(permission.canAccess ?? permission.CanAccess ?? false),
     canView: Boolean(permission.canView ?? permission.CanView ?? false),
-    canAdd: Boolean(permission.canAdd ?? permission.CanAdd ?? false),
+    canCreate,
+    canAdd,
     canEdit: Boolean(permission.canEdit ?? permission.CanEdit ?? false),
     canDelete: Boolean(permission.canDelete ?? permission.CanDelete ?? false),
   };
@@ -210,6 +217,7 @@ function ScreenPermissions() {
   const permissionRequestIdRef = useRef(0);
   const lastLoadedRoleNameRef = useRef("");
   const permissionsRef = useRef(permissions);
+  const rolePermissionsRef = useRef([]);
 
   useEffect(() => {
     permissionsRef.current = permissions;
@@ -390,6 +398,7 @@ function ScreenPermissions() {
             );
 
             setPermissions(nextPermissions);
+            rolePermissionsRef.current = nextPermissions;
             setSelectedRole((prev) => ({
               roleId: snapshot.roleId || selectedRole.roleId || prev.roleId || initialRoleId || "",
               roleName:
@@ -442,12 +451,15 @@ function ScreenPermissions() {
   const loadPermissionsForEmployee = useCallback(
     async (employeeId, { roleId = "", roleName = "", clearCurrent = false } = {}) => {
       const normalizedEmployeeId = normalizeId(employeeId);
+      const normalizedRoleName = getRoleNameValue({ roleName: roleName || initialRoleName });
+      const normalizedRoleId = normalizeId(roleId || initialRoleId);
 
       if (!normalizedEmployeeId) {
         if (clearCurrent) {
           setPermissions([]);
         }
 
+        rolePermissionsRef.current = [];
         setLoading(false);
         return [];
       }
@@ -458,37 +470,118 @@ function ScreenPermissions() {
         setPermissions([]);
       }
 
+      rolePermissionsRef.current = [];
       setLoading(true);
       setError("");
 
       try {
-        const snapshot = await fetchUserPermissionsByEmployeeId(normalizedEmployeeId);
+        const rolePermissionCandidates = getRolePermissionParameterCandidates({
+          roleId: normalizedRoleId,
+          roleName: normalizedRoleName,
+        });
+        const rolePermissionsPromise = (async () => {
+          if (!rolePermissionCandidates.length) {
+            return { permissions: [] };
+          }
+
+          let lastRoleError = null;
+
+          for (let index = 0; index < rolePermissionCandidates.length; index += 1) {
+            const candidate = rolePermissionCandidates[index];
+
+            if (!candidate) {
+              continue;
+            }
+
+            try {
+              return await fetchRolePermissionsByRoleName(candidate);
+            } catch (error) {
+              lastRoleError = error;
+              const status = Number(error?.response?.status || 0);
+
+              if (status && ![400, 401, 403, 404].includes(status)) {
+                throw error;
+              }
+            }
+          }
+
+          if (lastRoleError) {
+            const status = Number(lastRoleError?.response?.status || 0);
+
+            if (status && ![400, 401, 403, 404].includes(status)) {
+              throw lastRoleError;
+            }
+          }
+
+          return { permissions: [] };
+        })();
+
+        const userPermissionsPromise = fetchUserPermissionsByEmployeeId(normalizedEmployeeId);
+        const [roleResult, userResult] = await Promise.allSettled([
+          rolePermissionsPromise,
+          userPermissionsPromise,
+        ]);
 
         if (requestId !== permissionRequestIdRef.current) {
-          return snapshot.permissions || [];
+          return [];
         }
 
-        console.log("Reloaded API response", snapshot);
+        const roleSnapshot =
+          roleResult.status === "fulfilled"
+            ? roleResult.value
+            : (() => {
+                const status = Number(roleResult.reason?.response?.status || 0);
+                if (status === 404 || status === 403 || status === 401) {
+                  return { permissions: [] };
+                }
 
-        const nextPermissions = sortPermissions(
-          (snapshot.permissions || []).map((permission) =>
+                throw roleResult.reason;
+              })();
+
+        const userSnapshot =
+          userResult.status === "fulfilled"
+            ? userResult.value
+            : (() => {
+                const status = Number(userResult.reason?.response?.status || 0);
+                if (status === 404) {
+                  return { permissions: [] };
+                }
+
+                throw userResult.reason;
+              })();
+
+        const rolePermissions = sortPermissions(
+          (roleSnapshot?.permissions || []).map((permission) =>
+            normalizeScreenPermissionRow(permission, { strictAccess: true })
+          )
+        );
+        const userPermissions = sortPermissions(
+          (userSnapshot?.permissions || []).map((permission) =>
+            normalizeScreenPermissionRow(permission, { strictAccess: true })
+          )
+        );
+        const mergedPermissions = sortPermissions(
+          mergePermissionLists(rolePermissions, userPermissions).map((permission) =>
             normalizeScreenPermissionRow(permission, { strictAccess: true })
           )
         );
 
-        setPermissions(nextPermissions);
+        setPermissions(mergedPermissions);
+        rolePermissionsRef.current = rolePermissions;
         setSelectedRole((prev) => ({
-          roleId: roleId || prev.roleId || initialRoleId || "",
+          roleId: normalizedRoleId || prev.roleId || initialRoleId || "",
           roleName:
-            roleName ||
+            normalizedRoleName ||
             prev.roleName ||
             initialRoleName ||
             "",
         }));
 
-        console.log("Final mapped React state", nextPermissions);
+        console.log("Role baseline permissions:", rolePermissions);
+        console.log("User override permissions:", userPermissions);
+        console.log("Effective merged permissions:", mergedPermissions);
 
-        return nextPermissions;
+        return mergedPermissions;
       } catch (requestError) {
         if (requestId !== permissionRequestIdRef.current) {
           return [];
@@ -625,6 +718,7 @@ function ScreenPermissions() {
                   ...currentPermission,
                   canAccess: true,
                   canView: true,
+                  canCreate: true,
                   canAdd: true,
                   canEdit: true,
                   canDelete: true,
@@ -637,6 +731,7 @@ function ScreenPermissions() {
                   ...currentPermission,
                   canAccess: false,
                   canView: false,
+                  canCreate: false,
                   canAdd: false,
                   canEdit: false,
                   canDelete: false,
@@ -645,13 +740,19 @@ function ScreenPermissions() {
               );
             }
           } else {
-            nextPermission = normalizeScreenPermissionRow(
-              {
-                ...currentPermission,
-                [field]: nextValue,
-              },
-              { strictAccess: false }
-            );
+            const updatedPermission = {
+              ...currentPermission,
+              [field]: nextValue,
+            };
+
+            if (field === "canAdd" || field === "canCreate") {
+              updatedPermission.canAdd = nextValue;
+              updatedPermission.canCreate = nextValue;
+            }
+
+            nextPermission = normalizeScreenPermissionRow(updatedPermission, {
+              strictAccess: false,
+            });
           }
 
           console.log("Previous row state", currentPermission);
@@ -672,6 +773,7 @@ function ScreenPermissions() {
         current.map((permission) => ({
           ...permission,
           canView: true,
+          canCreate: true,
           canAdd: true,
           canEdit: true,
           canDelete: true,
@@ -727,6 +829,7 @@ function ScreenPermissions() {
         const payload = buildUserPermissionSavePayload({
           employeeId: initialEmployeeId,
           permissions: currentPermissions,
+          rolePermissions: rolePermissionsRef.current,
         });
 
         console.log("Final save payload", payload);
@@ -734,6 +837,7 @@ function ScreenPermissions() {
         const saveResponse = await saveUserPermissions({
           employeeId: initialEmployeeId,
           permissions: currentPermissions,
+          rolePermissions: rolePermissionsRef.current,
         });
 
         console.log("API Response:", saveResponse);

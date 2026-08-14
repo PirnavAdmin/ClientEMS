@@ -49,6 +49,8 @@ export const normalizePermissionRecord = (permission = {}) => {
   const hasGranularPermissions = [
     permission.canView,
     permission.CanView,
+    permission.canCreate,
+    permission.CanCreate,
     permission.canAdd,
     permission.CanAdd,
     permission.canEdit,
@@ -76,7 +78,23 @@ export const normalizePermissionRecord = (permission = {}) => {
     firstDefined(permission.canAccess, permission.CanAccess, false)
   );
   const canView = toBoolean(firstDefined(permission.canView, permission.CanView, legacyAccess));
-  const canAdd = toBoolean(firstDefined(permission.canAdd, permission.CanAdd, hasGranularPermissions ? false : legacyAccess));
+  const canCreate = toBoolean(
+    firstDefined(
+      permission.canCreate,
+      permission.CanCreate,
+      permission.canAdd,
+      permission.CanAdd,
+      hasGranularPermissions ? false : legacyAccess
+    )
+  );
+  const canAdd = toBoolean(
+    firstDefined(
+      permission.canAdd,
+      permission.CanAdd,
+      canCreate,
+      hasGranularPermissions ? false : legacyAccess
+    )
+  );
   const canEdit = toBoolean(firstDefined(permission.canEdit, permission.CanEdit, hasGranularPermissions ? false : legacyAccess));
   const canDelete = toBoolean(firstDefined(permission.canDelete, permission.CanDelete, hasGranularPermissions ? false : legacyAccess));
   const canUpload = toBoolean(firstDefined(permission.canUpload, permission.CanUpload, permission.upload, permission.Upload, hasGranularPermissions ? false : legacyAccess));
@@ -84,7 +102,7 @@ export const normalizePermissionRecord = (permission = {}) => {
   const canSubmit = toBoolean(firstDefined(permission.canSubmit, permission.CanSubmit, permission.submit, permission.Submit, hasGranularPermissions ? false : legacyAccess));
   const canApprove = toBoolean(firstDefined(permission.canApprove, permission.CanApprove, permission.approve, permission.Approve, hasGranularPermissions ? false : legacyAccess));
   const derivedAccess =
-    canView || canAdd || canEdit || canDelete || canUpload || canDownload || canSubmit || canApprove;
+    canView || canCreate || canAdd || canEdit || canDelete || canUpload || canDownload || canSubmit || canApprove;
 
   return {
     permissionId,
@@ -93,6 +111,7 @@ export const normalizePermissionRecord = (permission = {}) => {
     moduleName: String(firstDefined(permission.moduleName, permission.ModuleName, "")).trim(),
     type: String(firstDefined(permission.type, permission.Type, permission.moduleType, permission.ModuleType, "")).trim(),
     canView,
+    canCreate,
     canAdd,
     canEdit,
     canDelete,
@@ -110,16 +129,40 @@ const extractPermissionCollection = (payload) => {
   const candidates = [
     payload?.modules,
     payload?.Modules,
+    payload?.effectivePermissions,
+    payload?.EffectivePermissions,
+    payload?.permissions,
+    payload?.Permissions,
     payload?.modules?.$values,
     payload?.Modules?.$values,
+    payload?.effectivePermissions?.$values,
+    payload?.EffectivePermissions?.$values,
+    payload?.permissions?.$values,
+    payload?.Permissions?.$values,
     payload?.data?.modules,
     payload?.data?.Modules,
+    payload?.data?.effectivePermissions,
+    payload?.data?.EffectivePermissions,
+    payload?.data?.permissions,
+    payload?.data?.Permissions,
     payload?.data?.modules?.$values,
     payload?.data?.Modules?.$values,
+    payload?.data?.effectivePermissions?.$values,
+    payload?.data?.EffectivePermissions?.$values,
+    payload?.data?.permissions?.$values,
+    payload?.data?.Permissions?.$values,
     payload?.data?.data?.modules,
     payload?.data?.data?.Modules,
+    payload?.data?.data?.effectivePermissions,
+    payload?.data?.data?.EffectivePermissions,
+    payload?.data?.data?.permissions,
+    payload?.data?.data?.Permissions,
     payload?.data?.data?.modules?.$values,
     payload?.data?.data?.Modules?.$values,
+    payload?.data?.data?.effectivePermissions?.$values,
+    payload?.data?.data?.EffectivePermissions?.$values,
+    payload?.data?.data?.permissions?.$values,
+    payload?.data?.data?.Permissions?.$values,
     extractCollection(payload),
   ];
 
@@ -135,7 +178,7 @@ const extractPermissionCollection = (payload) => {
 export const normalizePermissionList = (payload) =>
   extractPermissionCollection(payload)
     .map(normalizePermissionRecord)
-    .filter((permission) => permission.moduleId || permission.moduleName);
+    .filter((permission) => permission.permissionId || permission.moduleId || permission.moduleName);
 
 export const normalizeEmployeeRecord = (employee = {}) => ({
   employeeId: String(
@@ -222,7 +265,7 @@ export const getUserPermissionErrorMessage = (
   error?.message ||
   fallback;
 
-const normalizeUserPermissionForSave = (permission = {}, fallbackEmployeeId = "") => {
+const normalizeUserPermissionForSave = (permission = {}) => {
   const moduleId = firstDefined(
     permission.moduleId,
     permission.ModuleId,
@@ -231,19 +274,23 @@ const normalizeUserPermissionForSave = (permission = {}, fallbackEmployeeId = ""
     ""
   );
   const canView = Boolean(permission.canView ?? permission.CanView ?? false);
-  const canAdd = Boolean(permission.canAdd ?? permission.CanAdd ?? false);
+  const canCreate = Boolean(
+    permission.canCreate ?? permission.CanCreate ?? permission.canAdd ?? permission.CanAdd ?? false
+  );
+  const canAdd = Boolean(permission.canAdd ?? permission.CanAdd ?? canCreate);
   const canEdit = Boolean(permission.canEdit ?? permission.CanEdit ?? false);
   const canDelete = Boolean(permission.canDelete ?? permission.CanDelete ?? false);
   const canAccess = Boolean(
     permission.canAccess ??
       permission.CanAccess ??
-      (canView || canAdd || canEdit || canDelete)
+      (canView || canCreate || canAdd || canEdit || canDelete)
   );
 
   return {
     ModuleId: normalizePayloadId(moduleId),
     CanAccess: canAccess,
     CanView: canView,
+    CanCreate: canCreate || canAdd,
     CanAdd: canAdd,
     CanEdit: canEdit,
     CanDelete: canDelete,
@@ -253,6 +300,7 @@ const normalizeUserPermissionForSave = (permission = {}, fallbackEmployeeId = ""
 export const buildUserPermissionSavePayload = ({
   employeeId = "",
   permissions = [],
+  rolePermissions = [],
 } = {}) => {
   const normalizedEmployeeId = normalizeId(employeeId);
 
@@ -260,11 +308,19 @@ export const buildUserPermissionSavePayload = ({
     throw new Error("Employee ID is required.");
   }
 
+  const normalizedRolePermissions = Array.isArray(rolePermissions)
+    ? rolePermissions.map((permission) => normalizeUserPermissionForSave(permission))
+    : [];
+  const rolePermissionMap = new Map(
+    normalizedRolePermissions
+      .map((permission) => [normalizeId(permission.ModuleId), permission])
+      .filter(([key]) => Boolean(key))
+  );
   const uniquePermissions = new Map();
 
   const normalizedPermissions = Array.isArray(permissions)
     ? permissions.map((permission) =>
-        normalizeUserPermissionForSave(permission, normalizedEmployeeId)
+        normalizeUserPermissionForSave(permission)
       )
     : [];
 
@@ -272,6 +328,20 @@ export const buildUserPermissionSavePayload = ({
     const key = normalizeId(permission.ModuleId);
 
     if (!key) {
+      return;
+    }
+
+    const rolePermission = rolePermissionMap.get(key);
+
+    if (
+      rolePermission &&
+      rolePermission.CanAccess === permission.CanAccess &&
+      rolePermission.CanView === permission.CanView &&
+      rolePermission.CanCreate === permission.CanCreate &&
+      rolePermission.CanAdd === permission.CanAdd &&
+      rolePermission.CanEdit === permission.CanEdit &&
+      rolePermission.CanDelete === permission.CanDelete
+    ) {
       return;
     }
 
@@ -325,10 +395,12 @@ export const fetchUserPermissionsByEmployeeId = async (employeeId) => {
 export const saveUserPermissions = async ({
   employeeId = "",
   permissions = [],
+  rolePermissions = [],
 } = {}) => {
   const payload = buildUserPermissionSavePayload({
     employeeId,
     permissions,
+    rolePermissions,
   });
 
   console.log("Save User Permissions Payload:", payload);

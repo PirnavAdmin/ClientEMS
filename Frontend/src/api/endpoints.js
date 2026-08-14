@@ -173,14 +173,14 @@ export const API = {
   EMPLOYEES: {
     LIST: "/Employees",
     CREATE: "/Employees",
-    UPDATE: (id) => `/Employees/${id}`,
-    DELETE: (id) => `/Employees/${id}`,
+    UPDATE: (id) => `/Employees/${encodePathSegment(id)}`,
+    DELETE: (id) => `/Employees/${encodePathSegment(id)}`,
     DOWNLOAD_FULL_MASTER: "/Employees/download-full-master",
     DOWNLOAD_EMPLOYEE_TEMPLATE: "/Employees/download-employee-template",
     BULK_UPLOAD: "/Employees/bulk-upload",
     UPCOMING_BIRTHDAYS: "/Employees/upcoming-birthdays",
     EXPORT_PROFILE_PDF: (employeeId) =>
-      `/Employees/export-profile-pdf/${employeeId}`,
+      `/Employees/export-profile-pdf/${encodePathSegment(employeeId)}`,
   },
 
   // ================= EMPLOYEE FULL DETAILS =================

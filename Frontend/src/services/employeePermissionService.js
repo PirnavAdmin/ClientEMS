@@ -1,112 +1,8 @@
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
-import { isEmployee, normalizePermissionList } from "../utils/authorization";
 import {
-  clearEmployeePermissionCache,
-  getStoredEmployeeEmail,
-  getStoredEmployeeId,
-  getStoredEmployeePermissionSnapshot,
-  getStoredRole,
-  getStoredRoleName,
-  getStoredUserRecord,
-  persistEmployeePermissions,
-} from "../utils/authStorage";
-
-const normalizeId = (value) => String(value ?? "").trim();
-
-const getEmployeePermissionEndpoint = (employeeId = "") => {
-  const normalizedEmployeeId = normalizeId(employeeId || getStoredEmployeeId() || "");
-
-  if (!normalizedEmployeeId) {
-    return "";
-  }
-
-  return API_ENDPOINTS.userPermission.get(normalizedEmployeeId) || "";
-};
-
-const resolveLoggedInRole = (role = "") =>
-  String(role || getStoredRoleName() || getStoredRole() || "").trim();
-
-const resolvePermissionFlow = (role = "") => {
-  const normalizedRole = String(role ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s_-]+/g, "");
-
-  if (["employee", "user", "manager"].includes(normalizedRole)) {
-    return "role-permission";
-  }
-
-  if (normalizedRole === "superadmin") {
-    return "superadmin-bypass";
-  }
-
-  return "no-permission-api";
-};
-
-const normalizeEmployeePermissionSnapshot = (payload = {}, fallback = {}) => {
-  const response = payload?.data ?? payload ?? {};
-
-  return {
-    userId: normalizeId(
-      response.userId ??
-        response.UserId ??
-        response.employeeId ??
-        response.EmployeeId ??
-        response.employeeID ??
-        response.data?.userId ??
-        response.data?.UserId ??
-        response.data?.employeeId ??
-        response.data?.EmployeeId ??
-        response.data?.employeeID ??
-        fallback.userId ??
-        getStoredEmployeeId() ??
-        ""
-    ),
-    userEmail: String(
-      response.userEmail ??
-        response.UserEmail ??
-        response.employeeEmail ??
-        response.EmployeeEmail ??
-        response.email ??
-        response.Email ??
-        response.data?.userEmail ??
-        response.data?.UserEmail ??
-        response.data?.employeeEmail ??
-        response.data?.EmployeeEmail ??
-        response.data?.email ??
-        response.data?.Email ??
-        fallback.userEmail ??
-        getStoredEmployeeEmail() ??
-        ""
-    ).trim(),
-    modules: normalizePermissionList(response),
-  };
-};
-
-const getCachedEmployeePermissionSnapshot = () => {
-  const snapshot = getStoredEmployeePermissionSnapshot();
-
-  if (snapshot && Array.isArray(snapshot.modules) && snapshot.modules.length > 0) {
-    return snapshot;
-  }
-
-  const storedUser = getStoredUserRecord();
-
-  if (storedUser) {
-    const normalizedUserSnapshot = normalizeEmployeePermissionSnapshot(storedUser);
-
-    if (Array.isArray(normalizedUserSnapshot.modules) && normalizedUserSnapshot.modules.length > 0) {
-      return persistEmployeePermissions({
-        userId: normalizedUserSnapshot.userId || getStoredEmployeeId() || "",
-        userEmail: normalizedUserSnapshot.userEmail || getStoredEmployeeEmail() || "",
-        modules: normalizedUserSnapshot.modules,
-      });
-    }
-  }
-
-  return null;
-};
+  clearCurrentUserEffectivePermissions,
+  fetchCurrentUserEffectivePermissions,
+} from "./effectivePermissionService";
+import { getStoredEmployeeEmail, getStoredEmployeeId } from "../utils/authStorage";
 
 const getFriendlyEmployeePermissionErrorMessage = (
   error,
@@ -152,98 +48,29 @@ const isAuthFailure = (error) =>
     String(error?.message || "")
   );
 
-const requestAllowedModules = async ({
-  force = false,
-  userId = "",
-  userEmail = "",
-  role = "",
-} = {}) => {
-  const loggedInRole = resolveLoggedInRole(role);
-  const permissionFlow = resolvePermissionFlow(loggedInRole);
-  const resolvedEmployeeId = normalizeId(userId || getStoredEmployeeId() || "");
-  const endpoint = getEmployeePermissionEndpoint(resolvedEmployeeId);
-  const normalizedRole = String(loggedInRole ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s_-]+/g, "");
+export const clearEmployeePermissionCache = () => {
+  clearCurrentUserEffectivePermissions();
 
-  console.log("Authenticated Role:", normalizedRole || "unknown");
-  console.log("Selected Permission Flow:", permissionFlow);
+  if (typeof window === "undefined") {
+    return;
+  }
 
-  if (!isEmployee(loggedInRole)) {
-    if (permissionFlow === "superadmin-bypass") {
-      console.log("Skipping permission API for Super Admin");
-    }
+  const storages = [window.localStorage, window.sessionStorage].filter(Boolean);
 
-    console.log("Selected Permission API:", "none");
-    console.log("Permission Response:", []);
-    console.log("Visible modules:", []);
-    return persistEmployeePermissions({
-      userId: getStoredEmployeeId() || "",
-      userEmail: getStoredEmployeeEmail() || "",
-      modules: [],
+  storages.forEach((storage) => {
+    [
+      "employeePermissions",
+      "employeeAllowedModules",
+      "employeeModules",
+      "employeePermissionModules",
+      "userId",
+      "userEmail",
+      "employeeId",
+      "employeeEmail",
+    ].forEach((key) => {
+      storage.removeItem(key);
     });
-  }
-
-  if (!resolvedEmployeeId) {
-    console.log("Selected Permission API:", "none");
-    console.log("Permission Response:", []);
-    console.log("Visible modules:", []);
-
-    return persistEmployeePermissions({
-      userId: getStoredEmployeeId() || "",
-      userEmail: getStoredEmployeeEmail() || "",
-      modules: [],
-    });
-  }
-
-  if (!force) {
-    const cached = getCachedEmployeePermissionSnapshot();
-
-    if (cached) {
-      return cached;
-    }
-  }
-
-  if (!endpoint) {
-    const emptySnapshot = persistEmployeePermissions({
-      userId: getStoredEmployeeId() || "",
-      userEmail: getStoredEmployeeEmail() || "",
-      modules: [],
-    });
-
-    console.log("Selected Permission API:", "none");
-    console.log("Permission Response:", []);
-    console.log("Visible modules:", []);
-
-    return emptySnapshot;
-  }
-
-  console.log("Selected Permission API:", endpoint);
-
-  const response = await api.get(endpoint, {
-    headers: {
-      Accept: "application/json",
-    },
-    skipAuthFailureHandling: true,
   });
-
-  console.log("Permission Response:", response.data);
-
-  const normalizedSnapshot = normalizeEmployeePermissionSnapshot(response.data, {
-    userId: resolvedEmployeeId,
-    userEmail: userEmail || getStoredEmployeeEmail() || "",
-  });
-
-  console.log("Visible modules:", normalizedSnapshot.modules);
-
-  const persistedSnapshot = persistEmployeePermissions({
-    userId: normalizedSnapshot.userId || getStoredEmployeeId() || "",
-    userEmail: normalizedSnapshot.userEmail || getStoredEmployeeEmail() || "",
-    modules: normalizedSnapshot.modules,
-  });
-
-  return persistedSnapshot;
 };
 
 export const fetchAllowedEmployeeModules = async ({
@@ -252,12 +79,19 @@ export const fetchAllowedEmployeeModules = async ({
   userEmail = "",
   role = "",
 } = {}) => {
-  const snapshot = await requestAllowedModules({
+  const snapshot = await fetchCurrentUserEffectivePermissions({
     force,
-    userId,
-    userEmail,
-    role,
+    currentUser: {
+      userId: userId || getStoredEmployeeId() || "",
+      employeeId: userId || getStoredEmployeeId() || "",
+      userEmail: userEmail || getStoredEmployeeEmail() || "",
+      roleName: role,
+      role,
+    },
   });
+
+  console.log("[Permissions] Selected Permission Flow:", "effective-user-permissions");
+  console.log("[Permissions] Effective permissions count:", snapshot?.modules?.length || 0);
 
   return snapshot.modules || [];
 };
@@ -267,5 +101,4 @@ export const getEmployeePermissionErrorMessage =
 
 export const isEmployeePermissionAuthFailure = isAuthFailure;
 
-export { clearEmployeePermissionCache };
-export const clearEmployeePermissions = clearEmployeePermissionCache;
+export { clearEmployeePermissionCache as clearEmployeePermissions };

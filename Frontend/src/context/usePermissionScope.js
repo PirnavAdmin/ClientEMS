@@ -1,7 +1,11 @@
 import { useAdminPermissions } from "./AdminPermissionContext";
 import { useEmployeePermissions } from "./EmployeePermissionContext";
-import { getStoredJwtRole, getStoredRole, getStoredRoleName } from "../utils/authStorage";
-import { isAdmin, isEmployee, isSuperAdmin } from "../utils/authorization";
+import {
+  getStoredJwtRole,
+  getStoredRole,
+  getStoredRoleName,
+} from "../utils/authStorage";
+import { isAdmin, isSuperAdmin } from "../utils/authorization";
 
 const resolvePermissionScope = () => {
   const role =
@@ -18,11 +22,7 @@ const resolvePermissionScope = () => {
     return "admin";
   }
 
-  if (isEmployee(role)) {
-    return "employee";
-  }
-
-  return "admin";
+  return "employee";
 };
 
 export const usePermissionScope = () => {
@@ -45,6 +45,11 @@ export const usePermissionScope = () => {
     ...selectedPermissions,
     permissionScope: scope,
     permissionFlow,
+    authenticatedRole:
+      getStoredRole() ||
+      getStoredRoleName() ||
+      getStoredJwtRole() ||
+      "",
     adminPermissions,
     employeePermissions,
   };

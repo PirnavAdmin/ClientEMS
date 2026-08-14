@@ -27,6 +27,7 @@ import { toastSuccess, toastError } from "../components/common/toast/toastServic
 const initialEmployeeForm = {
   id: "",
   originalId: "",
+  apiId: "",
   name: "",
   email: "",
   dept: "",
@@ -129,6 +130,83 @@ const normalizeDepartmentOptions = (response) =>
     id: dept.id ?? dept.departmentId ?? dept.department_Id ?? dept.departmentName,
     departmentName: dept.departmentName ?? dept.name ?? dept.department ?? "",
   }));
+
+const normalizeApiErrorMessage = (value) => {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => normalizeApiErrorMessage(item))
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  if (value && typeof value === "object") {
+    const directMessage = getFirstNonEmptyValue(
+      value.message,
+      value.Message,
+      value.error,
+      value.Error,
+      value.title,
+      value.Title,
+      value.detail,
+      value.Detail
+    );
+
+    if (directMessage !== undefined) {
+      return normalizeApiErrorMessage(directMessage);
+    }
+
+    const validationErrors = value.errors ?? value.Errors;
+
+    if (Array.isArray(validationErrors)) {
+      const messages = validationErrors
+        .map((item) => normalizeApiErrorMessage(item))
+        .filter(Boolean);
+
+      if (messages.length > 0) {
+        return messages.join(" ");
+      }
+    } else if (validationErrors && typeof validationErrors === "object") {
+      const messages = Object.values(validationErrors)
+        .flatMap((entry) => (Array.isArray(entry) ? entry : [entry]))
+        .map((item) => normalizeApiErrorMessage(item))
+        .filter(Boolean);
+
+      if (messages.length > 0) {
+        return messages.join(" ");
+      }
+    }
+
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+
+  return String(value ?? "").trim();
+};
+
+const resolveEmployeeRouteId = (employee) => {
+  const displayId = formatEmployeeCode(employee?.id);
+  const sourceEmployee = employee?.salarySource ?? employee ?? {};
+  const internalId = String(
+    sourceEmployee.id ??
+      sourceEmployee.employeeId ??
+      sourceEmployee.employee_Id ??
+      sourceEmployee.employee_id ??
+      ""
+  ).trim();
+
+  if (displayId.includes("/") && internalId && internalId !== displayId) {
+    return internalId;
+  }
+
+  return displayId || internalId;
+};
 
 const normalizeEmployeeList = (response, roleOptions) =>
   extractCollection(response).map((emp) => {
@@ -364,6 +442,7 @@ function EmployeeList() {
     setEmpForm({
       id: formatEmployeeCode(emp.id),
       originalId: formatEmployeeCode(emp.id),
+      apiId: resolveEmployeeRouteId(emp),
       name: emp.name === "-" ? "" : emp.name,
       email: emp.email === "-" ? "" : emp.email,
       dept: emp.dept === "-" ? "" : emp.dept,
@@ -508,8 +587,11 @@ function EmployeeList() {
       };
 
       if (isEditMode) {
+        const employeeRouteId =
+          empForm.apiId || empForm.originalId || empForm.id;
+
         await api.put(
-          API_ENDPOINTS.employees.byId(empForm.originalId),
+          API_ENDPOINTS.employees.byId(employeeRouteId),
           payload,
           {
             headers: {
@@ -545,18 +627,24 @@ function EmployeeList() {
         err.response?.data || err.message
       );
 
-      const backendMessage =
-        err.response?.data?.message ||
-        err.response?.data ||
-        err.message ||
-        "";
+      const backendMessage = normalizeApiErrorMessage(
+        err.response?.data ?? err.message ?? ""
+      );
 
-      const normalizedMessage = String(backendMessage).toLowerCase();
+      const normalizedMessage = backendMessage.toLowerCase();
+      const hasDuplicateSignal =
+        normalizedMessage.includes("already exists") ||
+        normalizedMessage.includes("already exist") ||
+        normalizedMessage.includes("duplicate") ||
+        normalizedMessage.includes("conflict");
 
-      if (normalizedMessage.includes("employee")) {
-        toastError("Employee ID already exists.");
-      } else if (normalizedMessage.includes("email")) {
+      if (hasDuplicateSignal && normalizedMessage.includes("email")) {
         toastError("Email already exists.");
+      } else if (
+        hasDuplicateSignal &&
+        normalizedMessage.includes("employee")
+      ) {
+        toastError("Employee ID already exists.");
       } else {
         toastError(backendMessage || "Failed to save employee.");
       }
@@ -566,7 +654,11 @@ function EmployeeList() {
   };
 
   const confirmDeleteEmployee = async () => {
-    if (!employeeToDelete) return;
+    if (
+      employeeToDelete === null ||
+      employeeToDelete === undefined ||
+      String(employeeToDelete).trim() === ""
+    ) return;
 
     try {
       await api.delete(API_ENDPOINTS.employees.byId(employeeToDelete));
@@ -575,8 +667,12 @@ function EmployeeList() {
       toastSuccess("Employee deleted successfully.");
       await fetchEmployees();
     } catch (err) {
-      console.error("Delete error:", err.response?.data || err.message);
-      toastError("Delete failed.");
+      const backendMessage = normalizeApiErrorMessage(
+        err.response?.data ?? err.message ?? ""
+      );
+
+      console.error("Delete error:", backendMessage || err.message);
+      toastError(backendMessage || "Failed to delete employee.");
     }
   };
 
@@ -1020,7 +1116,7 @@ function EmployeeList() {
                           className="app-action-button emp-action-btn emp-action-btn--delete"
                           onClick={(event) => {
                             event.stopPropagation();
-                            setEmployeeToDelete(emp.id);
+                            setEmployeeToDelete(resolveEmployeeRouteId(emp));
                             setShowDeletePopup(true);
                           }}
                         >

@@ -16,6 +16,79 @@ import {
 const normalizeRoleStatus = (value) =>
   String(value || "").trim().toLowerCase() === "inactive" ? "Inactive" : "Active";
 
+const normalizeApiErrorMessage = (value) => {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (Array.isArray(value)) {
+    const joined = value
+      .map((item) => normalizeApiErrorMessage(item))
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+
+    if (joined) {
+      return joined;
+    }
+
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return "";
+    }
+  }
+
+  if (value && typeof value === "object") {
+    const directMessage =
+      value.message ??
+      value.Message ??
+      value.error ??
+      value.Error ??
+      value.title ??
+      value.Title;
+
+    if (typeof directMessage === "string" && directMessage.trim()) {
+      return directMessage.trim();
+    }
+
+    if (Array.isArray(directMessage)) {
+      const joined = directMessage
+        .map((item) => normalizeApiErrorMessage(item))
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+
+      if (joined) {
+        return joined;
+      }
+    }
+
+    const validationErrors = value.errors ?? value.Errors;
+
+    if (validationErrors && typeof validationErrors === "object") {
+      const joined = Object.values(validationErrors)
+        .flat()
+        .map((item) => normalizeApiErrorMessage(item))
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+
+      if (joined) {
+        return joined;
+      }
+    }
+
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+
+  return String(value ?? "").trim();
+};
+
 function Roles() {
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -184,12 +257,16 @@ function Roles() {
     } catch (error) {
       console.error(error);
 
-      const msg = error.response?.data || "";
+      const responseMessage = normalizeApiErrorMessage(error.response?.data);
+      const msg =
+        responseMessage && responseMessage !== "{}" && responseMessage !== "[]"
+          ? responseMessage
+          : normalizeApiErrorMessage(error.message ?? "");
 
-      if (msg.includes("assigned to users")) {
+      if (msg.toLowerCase().includes("assigned to users")) {
         toastError("This role is assigned to users");
       } else {
-        toastError("Unable to delete role");
+        toastError(msg || "Unable to delete role");
       }
     }
   };

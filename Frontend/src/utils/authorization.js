@@ -118,7 +118,10 @@ export const normalizePermissionList = (data) => {
       const screenId = item?.screenId ?? item?.ScreenId ?? item?.moduleId ?? item?.ModuleId;
       const moduleId = item?.moduleId ?? item?.ModuleId ?? item?.screenId ?? item?.ScreenId;
       const canView = toBoolean(item?.canView ?? item?.CanView ?? false);
-      const canAdd = toBoolean(item?.canAdd ?? item?.CanAdd ?? false);
+      const canCreate = toBoolean(
+        item?.canCreate ?? item?.CanCreate ?? item?.canAdd ?? item?.CanAdd ?? false
+      );
+      const canAdd = toBoolean(item?.canAdd ?? item?.CanAdd ?? canCreate);
       const canEdit = toBoolean(item?.canEdit ?? item?.CanEdit ?? false);
       const canDelete = toBoolean(item?.canDelete ?? item?.CanDelete ?? false);
       const canUpload = toBoolean(item?.canUpload ?? item?.CanUpload ?? item?.upload ?? item?.Upload ?? false);
@@ -126,7 +129,7 @@ export const normalizePermissionList = (data) => {
       const canSubmit = toBoolean(item?.canSubmit ?? item?.CanSubmit ?? item?.submit ?? item?.Submit ?? false);
       const canApprove = toBoolean(item?.canApprove ?? item?.CanApprove ?? item?.approve ?? item?.Approve ?? false);
       const derivedAccess =
-        canView || canAdd || canEdit || canDelete || canUpload || canDownload || canSubmit || canApprove;
+        canView || canCreate || canAdd || canEdit || canDelete || canUpload || canDownload || canSubmit || canApprove;
 
       return {
         permissionId,
@@ -137,6 +140,7 @@ export const normalizePermissionList = (data) => {
         ).trim(),
         type: String(item?.type ?? item?.Type ?? item?.moduleType ?? item?.ModuleType ?? "").trim(),
         canView,
+        canCreate,
         canAdd,
         canEdit,
         canDelete,
@@ -236,11 +240,12 @@ export const isEmployee = (value) => {
     return (
       normalizedRole === "employee" ||
       normalizedRole === "user" ||
-      normalizedRole === "manager"
+      normalizedRole === "manager" ||
+      isRolePermissionRole(normalizedRole)
     );
   }
 
-  return hasRole("employee", "user", "manager");
+  return hasRole("employee", "user", "manager") || isRolePermissionRole();
 };
 
 export const isEmployeeUser = () => isEmployee();
@@ -266,6 +271,26 @@ export const isRolePermissionRole = (value) => {
     "employee",
     "user",
     "manager",
+    "onboarding",
+    "candidate",
+  ].includes(normalizedRole);
+};
+
+export const isPermissionManagedRole = (value) => {
+  const normalizedRole =
+    value !== undefined
+      ? normalizeRoleValue(value)
+      : normalizeRoleValue(getUserRole() || getUserRoleName() || "");
+
+  if (!normalizedRole) {
+    return false;
+  }
+
+  return ![
+    "admin",
+    "administrator",
+    "superadmin",
+    "superadministrator",
     "onboarding",
     "candidate",
   ].includes(normalizedRole);
@@ -315,6 +340,8 @@ export const hasModulePermission = (moduleName, action = "canAccess") => {
   const onboardingRole = isOnboardingUser();
   const adminPermissionRole =
     loginType === "admin" || (!loginType && isAdmin(activeRole));
+  const resolvedAction =
+    action === "canCreate" || action === "create" ? "canAdd" : action;
 
   if (superAdminRole) {
     return true;
@@ -350,14 +377,14 @@ export const hasModulePermission = (moduleName, action = "canAccess") => {
     }
 
     return (
-      permission[action] ??
-      permission[action[0].toUpperCase() + action.slice(1)] ??
+      permission[resolvedAction] ??
+      permission[resolvedAction[0].toUpperCase() + resolvedAction.slice(1)] ??
       canAccess
     ) === true;
   };
 
   if (adminPermissionRole) {
-    const permissions = getCurrentAdminAllowedModules();
+    const permissions = normalizePermissionList(getCurrentAdminAllowedModules());
 
     if (!Array.isArray(permissions) || permissions.length === 0) {
       return false;
@@ -366,7 +393,7 @@ export const hasModulePermission = (moduleName, action = "canAccess") => {
     return permissions.some(matchesPermission);
   }
 
-  const permissions = getStoredPermissions(activeRole);
+  const permissions = normalizePermissionList(getStoredPermissions(activeRole));
 
   if (!Array.isArray(permissions) || permissions.length === 0) {
     return false;

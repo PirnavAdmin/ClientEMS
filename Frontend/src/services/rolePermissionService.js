@@ -56,7 +56,8 @@ const dedupePermissions = (permissions = []) => {
       moduleId,
       moduleName,
       canView: toBoolean(permission.canView ?? permission.CanView ?? false),
-      canAdd: toBoolean(permission.canAdd ?? permission.CanAdd ?? false),
+      canCreate: toBoolean(permission.canCreate ?? permission.CanCreate ?? permission.canAdd ?? permission.CanAdd ?? false),
+      canAdd: toBoolean(permission.canAdd ?? permission.CanAdd ?? permission.canCreate ?? permission.CanCreate ?? false),
       canEdit: toBoolean(permission.canEdit ?? permission.CanEdit ?? false),
       canDelete: toBoolean(permission.canDelete ?? permission.CanDelete ?? false),
       canUpload: toBoolean(permission.canUpload ?? permission.CanUpload ?? false),
@@ -67,6 +68,7 @@ const dedupePermissions = (permissions = []) => {
 
     nextPermission.canAccess = Boolean(
       nextPermission.canView ||
+        nextPermission.canCreate ||
         nextPermission.canAdd ||
         nextPermission.canEdit ||
         nextPermission.canDelete ||
@@ -262,19 +264,21 @@ export const fetchAllowedRoleModules = async ({
 const normalizePermissionForSave = (permission = {}) => {
   const moduleId = normalizeId(permission.moduleId ?? permission.ModuleId ?? "");
   const canView = toBoolean(permission.canView ?? permission.CanView ?? false);
-  const canAdd = toBoolean(permission.canAdd ?? permission.CanAdd ?? false);
+  const canCreate = toBoolean(permission.canCreate ?? permission.CanCreate ?? permission.canAdd ?? permission.CanAdd ?? false);
+  const canAdd = toBoolean(permission.canAdd ?? permission.CanAdd ?? canCreate);
   const canEdit = toBoolean(permission.canEdit ?? permission.CanEdit ?? false);
   const canDelete = toBoolean(permission.canDelete ?? permission.CanDelete ?? false);
   const canAccess = toBoolean(
     permission.canAccess ??
       permission.CanAccess ??
-      (canView || canAdd || canEdit || canDelete)
+      (canView || canCreate || canAdd || canEdit || canDelete)
   );
 
   return {
     ModuleId: normalizePayloadId(moduleId),
     CanAccess: canAccess,
     CanView: canView,
+    CanCreate: canCreate || canAdd,
     CanAdd: canAdd,
     CanEdit: canEdit,
     CanDelete: canDelete,
