@@ -87,11 +87,12 @@ namespace EmployeeManagementSystem.Controllers
         // UPDATE
         // ==========================================
 
-        [HttpPut("{employeeId}")]
+        [HttpPut("{*employeeId}")]
         public async Task<IActionResult> Update(
             string employeeId,
             EmployeeSalaryStructureDto dto)
         {
+         employeeId = Uri.UnescapeDataString(employeeId).Trim();
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
