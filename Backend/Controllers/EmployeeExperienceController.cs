@@ -115,9 +115,9 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         // ✅ PUT - Update
-        [HttpPut("{employeeId}")]
+        [HttpPut("{*employeeId}")]
         public async Task<IActionResult> Update(string employeeId, EmployeeExperienceDto dto)
-        {
+        { employeeId = Uri.UnescapeDataString(employeeId).Trim();
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
