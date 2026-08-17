@@ -79,12 +79,14 @@ namespace EmployeeManagementSystem.Services
 
             foreach (var file in dto.Files!)
             {
-                var extension =
-                    Path.GetExtension(file.FileName)
-                        .ToLower();
+               var extension = Path.GetExtension(file.FileName);
 
-                if (!allowedExtensions.Contains(extension))
-                    return "Only PDF, JPG, JPEG and PNG files are allowed";
+if (!allowedExtensions.Contains(
+        extension,
+        StringComparer.OrdinalIgnoreCase))
+{
+    return "Only PDF, JPG, JPEG and PNG files are allowed";
+}
 
                 var employeeFolder =
                     Path.Combine(
