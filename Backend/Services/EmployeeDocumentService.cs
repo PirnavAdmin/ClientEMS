@@ -24,19 +24,29 @@ namespace EmployeeManagementSystem.Services
                 return "Please select at least one file";
             if (string.IsNullOrWhiteSpace(dto.DocumentType))
                 return "Please select document type";
-            var allowedDocumentTypes = new List<string>
+          var allowedDocumentTypes = new List<string>
 {
+    // Education Documents
     "10th Certificate",
     "Intermediate / 12th Certificate",
     "Degree Certificate",
-    "Post Graduation Certificate",
+    "Post-Graduation Certificate",
+
+    // Identity Documents
     "Aadhaar Card",
     "PAN Card",
     "Passport",
-    "Passport Size Photo",
-    "Offer Letter",
-    "Appointment Letter",
-    "Relieving Letter",
+    "Passport-size Photo",
+
+    // Current Company
+    "Signed Offer Letter",
+
+    // Previous Experience / Internship
+    "Previous Offer Letter",
+    "Previous Appointment Letter",
+    "Previous Relieving Letter",
+
+    // Last 3 Months Payslips
     "Payslip Month 1",
     "Payslip Month 2",
     "Payslip Month 3"
@@ -275,22 +285,33 @@ if (!allowedExtensions.Contains(
         public async Task<List<EmployeeDocumentChecklistDto>>
     GetChecklist(string employeeId)
         {
-            var requiredDocuments = new List<string>
-    {
-        "10th Certificate",
-        "Intermediate / 12th Certificate",
-        "Degree Certificate",
-        "Post Graduation Certificate",
-        "Aadhaar Card",
-        "PAN Card",
-        "Passport Size Photo",
-        "Offer Letter",
-        "Appointment Letter",
-        "Relieving Letter",
-        "Payslip Month 1",
-        "Payslip Month 2",
-        "Payslip Month 3"
-    };
+           var requiredDocuments = new List<string>
+{
+    // Education Documents
+    "10th Certificate",
+    "Intermediate / 12th Certificate",
+    "Degree Certificate",
+    "Post-Graduation Certificate",
+
+    // Identity Documents
+    "Aadhaar Card",
+    "PAN Card",
+    "Passport",
+    "Passport-size Photo",
+
+    // Current Company
+    "Signed Offer Letter",
+
+    // Previous Experience / Internship
+    "Previous Offer Letter",
+    "Previous Appointment Letter",
+    "Previous Relieving Letter",
+
+    // Last 3 Months Payslips
+    "Payslip Month 1",
+    "Payslip Month 2",
+    "Payslip Month 3"
+};
 
             var uploadedDocuments = await _context.EmployeeDocuments
                 .Where(x => x.Employee_Id == employeeId)
