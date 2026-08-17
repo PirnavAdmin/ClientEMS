@@ -52,7 +52,7 @@ namespace EmployeeManagementSystem.Controllers
         public async Task<IActionResult> UploadAgreement([FromForm] UploadAgreementDto dto)
 
         {
-        employeeId = Uri.UnescapeDataString(employeeId).Trim();
+      
 
             var result = await _agreementService.UploadAgreement(dto);
 
@@ -60,36 +60,26 @@ namespace EmployeeManagementSystem.Controllers
 
         }
 
+[HttpGet("myagreements")]
+public async Task<IActionResult> GetMyAgreements()
+{
+    var employeeId = User.FindFirst("EmployeeId")?.Value;
 
-        [HttpGet("myagreements")]
-
-        public async Task<IActionResult> GetMyAgreements()
-
+    if (string.IsNullOrEmpty(employeeId))
+    {
+        return Unauthorized(new
         {
+            Status = false,
+            Message = "Invalid token."
+        });
+    }
 
-            var employeeId = User.FindFirst("EmployeeId")?.Value;
+    employeeId = Uri.UnescapeDataString(employeeId).Trim();
 
-            if (string.IsNullOrEmpty(employeeId))
+    var result = await _agreementService.GetMyAgreements(employeeId);
 
-            {
-
-                return Unauthorized(new
-
-                {
-
-                    Status = false,
-
-                    Message = "Invalid token."
-
-                });
-
-            }
-
-            var result = await _agreementService.GetMyAgreements(employeeId);
-
-            return Ok(result);
-
-        }
+    return Ok(result);
+}
 
         [HttpGet("filepath/{agreementId}")]
 
