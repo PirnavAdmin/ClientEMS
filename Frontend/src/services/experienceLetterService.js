@@ -4,33 +4,45 @@ import { withAuthHeaders } from "../api/requestConfig";
 
 export const generateExperienceLetter = (data, config = {}) =>
   api.post(
-    API_ENDPOINTS.EXPERIENCE_LETTER.GENERATE,
+    API_ENDPOINTS.experienceLetters.generate,
     data,
     withAuthHeaders(config)
   );
 
 export const getAllExperienceLetters = (config = {}) =>
-  api.get(API_ENDPOINTS.EXPERIENCE_LETTER.GET_ALL, withAuthHeaders(config));
+  api.get(
+    API_ENDPOINTS.experienceLetters.all,
+    withAuthHeaders(config)
+  );
 
 export const downloadExperienceLetter = (id, config = {}) =>
-  api.get(API_ENDPOINTS.EXPERIENCE_LETTER.DOWNLOAD(id), {
-    ...withAuthHeaders(config),
-    responseType: "blob",
-  });
+  api.get(
+    API_ENDPOINTS.experienceLetters.download(id),
+    {
+      ...withAuthHeaders(config),
+      responseType: "blob",
+    }
+  );
 
 export const previewExperienceLetter = (id, config = {}) =>
-  api.get(API_ENDPOINTS.EXPERIENCE_LETTER.PREVIEW(id), {
-    ...withAuthHeaders(config),
-    responseType: "blob",
-    dedupe: false,
-  });
+  api.get(
+    API_ENDPOINTS.experienceLetters.preview(id),
+    {
+      ...withAuthHeaders(config),
+      responseType: "blob",
+      dedupe: false,
+    }
+  );
 
 export const sendExperienceLetter = (payload, config = {}) =>
   api.post(
-    API_ENDPOINTS.EXPERIENCE_LETTER.SEND,
+    API_ENDPOINTS.experienceLetters.send,
     payload,
     withAuthHeaders(config)
   );
 
 export const deleteExperienceLetter = (id, config = {}) =>
-  api.delete(API_ENDPOINTS.EXPERIENCE_LETTER.DELETE(id), withAuthHeaders(config));
+  api.delete(
+    API_ENDPOINTS.experienceLetters.delete(id),
+    withAuthHeaders(config)
+  );
