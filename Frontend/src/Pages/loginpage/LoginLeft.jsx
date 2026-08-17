@@ -508,7 +508,7 @@ export default function LoginLeft() {
 
         <div className="auth-card-head">
           <p className="auth-eyebrow">Welcome Back</p>
-          <h2 className="auth-card-title">Sign in to Honeywell HRMS</h2>
+          <h2 className="auth-card-title">Sign in to HONEYWELL HRMS</h2>
           {/* <p className="auth-card-subtitle">
             Access your secure workspace for people operations, approvals,
             payroll, and reporting.
