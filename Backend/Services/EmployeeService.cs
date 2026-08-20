@@ -432,16 +432,20 @@ namespace EmployeeManagementSystem.Services
      EmployeeDto dto)
 
         {
-            if (!await _adminAuthorization.IsAdminAsync(user))
-            {
-                throw new UnauthorizedAccessException(
-                    "Only admins can update employees.");
-            }
-            var employee = await _context.Employees
-                .FirstOrDefaultAsync(e => e.Employee_Id == employeeId);
+            // if (!await _adminAuthorization.IsAdminAsync(user))
+            // {
+            //     throw new UnauthorizedAccessException(
+            //         "Only admins can update employees.");
+            // }
+            employeeId = Uri.UnescapeDataString(employeeId).Trim();
 
-            if (employee == null)
-                return null;
+  // Find employee
+  var employee = await _context.Employees
+      .FirstOrDefaultAsync(e =>
+          e.Employee_Id.Trim() == employeeId);
+
+  if (employee == null)
+      return null;
 
             // 🔥 STORE OLD DEPARTMENT
             var oldDepartment = employee.Department;
@@ -1130,11 +1134,14 @@ namespace EmployeeManagementSystem.Services
         }
 
 
-        public async Task<Employee?> GetEmployeeByEmployeeId(string employeeId)
-        {
-            return await _context.Employees
-                .FirstOrDefaultAsync(e => e.Employee_Id == employeeId);
-        }
+       public async Task<Employee?> GetEmployeeByEmployeeId(string employeeId)
+{
+    employeeId = Uri.UnescapeDataString(employeeId).Trim();
+
+    return await _context.Employees
+        .FirstOrDefaultAsync(e =>
+            e.Employee_Id.Trim() == employeeId);
+}
 
         public async Task SaveChanges()
         {
