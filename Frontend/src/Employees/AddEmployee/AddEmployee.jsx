@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { toastSuccess, toastError } from "@/components/common/toast/toastService";
 import api from "../../api/axiosInstance";
 import { API_ENDPOINTS, buildApiUrl } from "../../api/endpoints";
@@ -21,7 +21,11 @@ import ReviewSubmit from "./ReviewSubmit";
 import "./AddEmployee.css";
 
 function AddEmployee() {
-  const { id } = useParams();
+ const location = useLocation();
+
+const id = decodeURIComponent(
+    location.pathname.replace("/add-employee/", "")
+);
 
   const viewMode = Boolean(id);
 
