@@ -437,15 +437,24 @@ namespace EmployeeManagementSystem.Services
             //     throw new UnauthorizedAccessException(
             //         "Only admins can update employees.");
             // }
-            employeeId = Uri.UnescapeDataString(employeeId).Trim();
+           Employee? employee;
 
-  // Find employee
-  var employee = await _context.Employees
-      .FirstOrDefaultAsync(e =>
-          e.Employee_Id.Trim() == employeeId);
+    // Frontend sends database Id, e.g. 68
+    if (int.TryParse(employeeId, out int databaseId))
+    {
+        employee = await _context.Employees
+            .FirstOrDefaultAsync(e => e.Id == databaseId);
+    }
+    else
+    {
+        // Frontend sends Employee_Id, e.g. HITS/251100
+        employee = await _context.Employees
+            .FirstOrDefaultAsync(e =>
+                e.Employee_Id.Trim() == employeeId);
+    }
 
-  if (employee == null)
-      return null;
+    if (employee == null)
+        return null;
 
             // 🔥 STORE OLD DEPARTMENT
             var oldDepartment = employee.Department;
