@@ -385,14 +385,14 @@ function App() {
               />
 
               {/* VIEW / EDIT EMPLOYEE FULL DETAIL */}
-              <Route
-                path="/add-employee/:id"
-                element={
-                  <PermissionRoute module="Add Employee">
-                    <AddEmployee />
-                  </PermissionRoute>
-                }
-              />
+             <Route
+    path="/add-employee/*"
+    element={
+        <PermissionRoute module="Add Employee">
+            <AddEmployee />
+        </PermissionRoute>
+    }
+/>
 
               <Route
                 path="/departments"
