@@ -544,8 +544,8 @@ namespace EmployeeManagementSystem.Services
                         select u.Email
                     ).ToListAsync();
 
-                    recipients.Add("hr.admin@pirnav.com");
-                    recipients.Add("hr@pirnav.com");
+                    // recipients.Add("hr.admin@pirnav.com");
+                    // recipients.Add("hr@pirnav.com");
 
                     recipients = recipients
                         .Distinct(StringComparer.OrdinalIgnoreCase)
