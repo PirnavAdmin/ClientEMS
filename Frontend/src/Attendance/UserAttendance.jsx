@@ -486,7 +486,7 @@ function UserAttendance() {
 
       const errorMsg = responseData?.errors
         ? Object.values(responseData.errors).flat().join(", ")
-        : responseData?.message || "Server error during check-out";
+        : responseData?.message || "Check-out has passed already";
 
       toastError(errorMsg);
     } finally {
