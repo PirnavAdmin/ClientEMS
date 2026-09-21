@@ -70,42 +70,65 @@ namespace EmployeeManagementSystem.Controllers
 
         // GENERATE ALL PAYSLIPS
 
-        //--------------------------------
-        //[Authorize]
-        //[Permission(ModuleIds.Payroll, PermissionAction.Add)]
-        [HttpPost("generate-all")]
-        public async Task<IActionResult> GenerateAll(
-     int year,
-     string month)
+       //--------------------------------
+// GENERATE ALL PAYSLIPS
+//--------------------------------
+
+//[Authorize]
+//[Permission(ModuleIds.Payroll, PermissionAction.Add)]
+[HttpPost("generate-all")]
+public async Task<IActionResult> GenerateAll(
+    [FromBody] GenerateAllPayslipDto dto)
+{
+    try
+    {
+        if (dto == null)
         {
-            try
-            {
-                var generatedPayslips =
-                    await _service.GenerateAllPaySlips(
-                        year,
-                        month);
-
-                return Ok(new
-                {
-                    success = true,
-                    message =
-                        $"Bulk payslip generation completed successfully for {month} {year}.",
-
-                    generatedCount = generatedPayslips.Count,
-
-                    payslips = generatedPayslips
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new
-                {
-                    success = false,
-                    message = "Bulk payslip generation failed.",
-                    error = ex.Message
-                });
-            }
+            return BadRequest("Request is required.");
         }
+
+        if (dto.Year <= 0)
+        {
+            return BadRequest("Valid year is required.");
+        }
+
+        if (dto.Months == null || dto.Months.Count == 0)
+        {
+            return BadRequest("At least one month is required.");
+        }
+
+        if (dto.EmployeeIds == null || dto.EmployeeIds.Count == 0)
+        {
+            return BadRequest("At least one employee is required.");
+        }
+
+        var generatedPayslips =
+            await _service.GenerateAllPaySlips(
+                dto.Year,
+                dto.Months,
+                dto.EmployeeIds);
+
+        return Ok(new
+        {
+            success = true,
+            message = "Bulk payslip generation completed successfully.",
+
+            generatedCount =
+                generatedPayslips.Sum(x => x.GeneratedCount),
+
+            payslips = generatedPayslips
+        });
+    }
+    catch (Exception ex)
+    {
+        return StatusCode(500, new
+        {
+            success = false,
+            message = "Bulk payslip generation failed.",
+            error = ex.Message
+        });
+    }
+}
 
         [HttpPost("send-all-emails")]
         public async Task<IActionResult> SendAllPayslipEmails(
