@@ -233,32 +233,31 @@ e.Status == "Active");
                 .AddMonths(1)
                 .AddDays(-1);
 
-            var calculationFromDate =
-                joiningDate > monthStart
-                    ? joiningDate
-                    : monthStart;
+            // var calculationFromDate =
+            //     joiningDate > monthStart
+            //         ? joiningDate
+            //         : monthStart;
 
             //--------------------------------
-            // ATTENDANCE
-            //--------------------------------
-            var summary =
-       await _attendanceService.GetMonthlyAttendanceSummary(
-           employee.Employee_Id,
-           monthNumber,
-           yearValue,
-           calculationFromDate);
+// ATTENDANCE
+//--------------------------------
+var summary =
+    await _attendanceService.GetMonthlyAttendanceSummary(
+        employee.Employee_Id,
+        monthNumber,
+        yearValue);
 
-            int absentDays = summary.AbsentDays;
+int absentDays = summary.AbsentDays;
 
-            decimal presentDays = summary.PresentDays;
+decimal presentDays = summary.PresentDays;
 
-            int payrollDays = summary.PayrollDays;
+int payrollDays = summary.PayrollDays;
 
-            int totalWorkingDays = summary.PayrollDays;
+int totalWorkingDays = summary.PayrollDays;
 
-            int lopDays = summary.LopDays;
+int lopDays = summary.LopDays;
 
-            decimal paidDays = summary.PayableDays;
+decimal paidDays = summary.PayableDays;
 
             //--------------------------------
             // SALARY CALCULATIONS
