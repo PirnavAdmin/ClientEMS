@@ -1,4 +1,4 @@
-﻿using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Models;
 
 namespace EmployeeManagementSystem.Interfaces
@@ -20,7 +20,10 @@ namespace EmployeeManagementSystem.Interfaces
         Task<bool> DeletePaySlip(int id);
         Task<List<object>> GetEmployeePayslips(string employeeId);
 
-        Task<List<string>> GenerateAllPaySlips(int year, string month);
+        Task<List<BulkPayslipGenerationResultDto>> GenerateAllPaySlips(
+    int year,
+    List<string> months,
+    List<string> employeeIds);
 
         Task<List<PaySlip>> GetRecentPayslips();
 
