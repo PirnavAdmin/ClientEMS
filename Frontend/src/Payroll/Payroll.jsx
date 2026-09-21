@@ -9,7 +9,7 @@ import {
   logPerformanceError,
   startPerformanceTimer } from
 "../utils/performance";
-import { toastError, toastSuccess } from "../components/common/Toast/toastService";
+import { toastError, toastSuccess } from "../components/common/toast/toastService";
 import { FiDownload, FiLoader, FiTrash2 } from "react-icons/fi";
 import {
   deletePayslip,
