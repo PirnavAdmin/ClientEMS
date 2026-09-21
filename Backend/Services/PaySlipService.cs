@@ -15,7 +15,7 @@ using QuestPDF.Infrastructure;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
-using Hangfire;
+
 
 using System.IO;
 using System.Runtime.InteropServices;
@@ -37,7 +37,7 @@ namespace EmployeeManagementSystem.Services
 
         private readonly IServiceScopeFactory _scopeFactory;
 
-        private readonly ITemplateService _templateService;//vishnu
+       
 
         public PaySlipService(
 
@@ -49,9 +49,9 @@ namespace EmployeeManagementSystem.Services
 
     IEmailService emailService,
 
-    IServiceScopeFactory scopeFactory,
+    IServiceScopeFactory scopeFactory
 
-    ITemplateService templateService)
+ )
 
         {
 
@@ -65,7 +65,7 @@ namespace EmployeeManagementSystem.Services
 
             _scopeFactory = scopeFactory;
 
-            _templateService = templateService;
+           
 
         }
 
@@ -1066,11 +1066,10 @@ e.Status == "Active");
         //--------------------------------
         // BULK GENERATION
         //--------------------------------
-        [DisableConcurrentExecution(timeoutInSeconds: 3600)]
-        public async Task<List<BulkPayslipGenerationResultDto>> GenerateAllPaySlips(
-       int year,
-       List<string> months,
-       List<string> employeeIds)
+       public async Task<List<BulkPayslipGenerationResultDto>> GenerateAllPaySlips(
+    int year,
+    List<string> months,
+    List<string> employeeIds)
         {
             // ============================================================
             // 1. VALIDATE INPUT
