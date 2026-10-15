@@ -1,4 +1,4 @@
-﻿import React, { memo, useEffect, useMemo, useState, useCallback, useRef } from "react";
+import React, { memo, useEffect, useMemo, useState, useCallback, useRef } from "react";
 import "./AttendanceTable.css";
 import { toastSuccess, toastError, toastWarning } from "@/components/common/toast/toastService";
 import api from "../api/axiosInstance";
@@ -1087,7 +1087,7 @@ function AttendanceTable({
     const numericValue = Number(value);
 
     if (!Number.isFinite(numericValue)) {
-      return "-";
+      return "—";
     }
 
     return numericValue
@@ -1120,6 +1120,50 @@ function AttendanceTable({
 
     const checkInCoords = getLocationCoords(emp, "checkIn");
     const checkOutCoords = getLocationCoords(emp, "checkOut");
+    const calculateDistanceKm = (lat1, lon1, lat2, lon2) => {
+      const values = [lat1, lon1, lat2, lon2].map(Number);
+      if (!values.every(Number.isFinite)) return 0;
+
+      const [latitude1, longitude1, latitude2, longitude2] = values;
+      const R = 6371;
+      const dLat = ((latitude2 - latitude1) * Math.PI) / 180;
+      const dLon = ((longitude2 - longitude1) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos((latitude1 * Math.PI) / 180) *
+          Math.cos((latitude2 * Math.PI) / 180) *
+          Math.sin(dLon / 2) ** 2;
+      return Math.round(
+        R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 10
+      ) / 10;
+    };
+    // Backend Distance and DistanceMeters are both stored and returned in KM;
+    // DistanceMeters is a legacy property name despite the unit.
+    const suppliedDistance =
+      emp?.distanceKm ?? emp?.distance ?? emp?.distanceMeters;
+    const parsedDistance = Number(suppliedDistance);
+    const hasSuppliedDistance =
+      suppliedDistance !== null &&
+      suppliedDistance !== undefined &&
+      suppliedDistance !== "" &&
+      Number.isFinite(parsedDistance);
+    const hasBothCoordinates = Boolean(checkInCoords && checkOutCoords);
+    const dist = hasSuppliedDistance
+      ? Math.round(parsedDistance * 10) / 10
+      : hasBothCoordinates
+        ? calculateDistanceKm(
+            checkInCoords.lat,
+            checkInCoords.lng,
+            checkOutCoords.lat,
+            checkOutCoords.lng
+          )
+        : 0;
+    const distanceAboveThreshold = hasBothCoordinates && dist > 1.0;
+    const isMismatch =
+      distanceAboveThreshold &&
+      (emp?.isLocationMismatch === true ||
+        emp?.locationStatus === "MISMATCH" ||
+        distanceAboveThreshold);
     const checkInAddress = getLocationAddress(emp, "checkIn");
     const checkOutAddress = getLocationAddress(emp, "checkOut");
     const attendanceDate =
@@ -1139,6 +1183,8 @@ function AttendanceTable({
       employeeName,
       dateLabel: formatDate(attendanceDate),
       hasLocationData,
+      distanceKm: dist,
+      isMismatch,
       emptyMessage:
         "No location information available for this attendance record.",
       checkIn: {
@@ -4281,7 +4327,7 @@ function AttendanceTable({
           >
             <div className="location-modal-header">
               <div className="location-modal-title-group">
-                <h3 id="location-modal-title">Location Details</h3>
+                <h3 id="location-modal-title">Location details</h3>
                 <p>
                   {locationModalData.employeeName}
                   {locationModalData.employeeId
@@ -4347,9 +4393,18 @@ function AttendanceTable({
                             <p>{entry.time}</p>
                           </div>
 
-                          <span className="attendance-location-card-pill">
-                            {mapsUrl ? "Location Recorded" : "No Coordinates"}
-                          </span>
+                          {type === "checkOut" &&
+                          locationModalData.isMismatch ? (
+                            <span className="attendance-location-card-pill mismatch-pill">
+                              Mismatch: {locationModalData.distanceKm} km
+                            </span>
+                          ) : (
+                            <span className="attendance-location-card-pill">
+                              {entry.coords
+                                ? "Location recorded"
+                                : "No Coordinates"}
+                            </span>
+                          )}
                         </div>
 
                         <div className="attendance-location-details">
@@ -4422,5 +4477,4 @@ function AttendanceTable({
 
 // Optimization: memoize the table so unrelated parent renders do not redraw large attendance grids.
 export default memo(AttendanceTable);
-
 
