@@ -1,4 +1,4 @@
-﻿/* ================= PAGE ================= */
+/* ================= PAGE ================= */
 .attendance-page {
   padding: 0;
   background: var(--attendance-bg);
@@ -2853,13 +2853,20 @@
 .attendance-location-card-pill {
   flex-shrink: 0;
   border-radius: 999px;
-  border: 1px solid var(--attendance-border);
-  background: var(--attendance-card);
-  color: var(--attendance-muted);
-  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: #9ca3af;
+  padding: 5px 12px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   white-space: nowrap;
+}
+
+.attendance-location-card-pill.mismatch-pill {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  font-weight: 700;
 }
 
 .attendance-location-details {
@@ -2984,7 +2991,6 @@
     min-height: 220px;
   }
 }
-
 
 
 
