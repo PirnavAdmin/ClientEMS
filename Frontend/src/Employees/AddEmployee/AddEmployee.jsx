@@ -23,9 +23,19 @@ import "./AddEmployee.css";
 function AddEmployee() {
  const location = useLocation();
 
-const id = decodeURIComponent(
-    location.pathname.replace("/add-employee/", "")
-);
+
+const path = location.pathname.replace(/\/+$/, "");
+
+const pathSegments = path.split("/").filter(Boolean);
+
+const addEmployeeIndex = pathSegments.lastIndexOf("add-employee");
+
+const id =
+    addEmployeeIndex >= 0 &&
+    addEmployeeIndex < pathSegments.length - 1
+        ? decodeURIComponent(pathSegments[addEmployeeIndex + 1])
+        : "";
+
 
   const viewMode = Boolean(id);
 
